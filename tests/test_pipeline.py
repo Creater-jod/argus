@@ -40,4 +40,6 @@ def test_pipeline_handles_custom_spec(tmp_path: Path):
         skip_graph=True,
     )
 
-    assert report.spec_compliance.compliance_score > 0.0
+    assert report.spec_compliance is not None
+    assert len(report.spec_compliance.unmet_requirements) == 2
+    assert len(report.spec_compliance.hallucinated_claims) == 2
