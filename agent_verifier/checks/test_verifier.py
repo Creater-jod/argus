@@ -114,12 +114,26 @@ def scan_for_anti_gaming_diffs(file_diff: FileDiff) -> list[str]:
         ):
             findings.append(f"{file_diff.path}:{line_no} - Added test skip marker: '{stripped}'")
 
+        # Mark xfail added (silencing real failures)
+        if "@pytest.mark.xfail" in stripped or "@unittest.expectedFailure" in stripped:
+            findings.append(
+                f"{file_diff.path}:{line_no} - Added test failure suppression (xfail): '{stripped}'"
+            )
+
         # Tautological assertions: assert True, assert 1 == 1, self.assertTrue(True)
         if re.search(r"\bassert\s+(?:True|1\s*==\s*1|0\s*==\s*0)\b", stripped) or re.search(
             r"self\.assertTrue\(\s*True\s*\)", stripped
         ):
             findings.append(
                 f"{file_diff.path}:{line_no} - Tautological assertion added: '{stripped}'"
+            )
+
+        # Diluted/weakened assertions: assert ... or True
+        if re.search(r"\bassert\s+.*(?:\bor\s+True|\bor\s+1\b)", stripped) or re.search(
+            r"\bassert\s+True\s+in\b", stripped
+        ):
+            findings.append(
+                f"{file_diff.path}:{line_no} - Diluted/weakened assertion: '{stripped}'"
             )
 
         # Swallowed exceptions in tests: except ...: pass

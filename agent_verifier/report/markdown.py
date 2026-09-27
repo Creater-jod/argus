@@ -83,6 +83,10 @@ def export_markdown(report: TrustReport) -> str:
 
     # Detailed discrepancies section
     discrepancies = []
+    for sec in diff.security_flags:
+        discrepancies.append(f"- 🚨 **CRITICAL SECURITY INJECTION**: `{sec}`")
+    for stub in diff.deceptive_stubs:
+        discrepancies.append(f"- 🚨 **DECEPTIVE STUB DETECTED**: `{stub}`")
     if diff.sensitive_unclaimed_changes:
         discrepancies.append(
             f"- 🚨 **CRITICAL STEALTH MODIFICATION**: Sensitive file(s) modified without declaration: `{', '.join(diff.sensitive_unclaimed_changes)}`"

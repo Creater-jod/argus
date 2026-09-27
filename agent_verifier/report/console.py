@@ -128,6 +128,10 @@ def render_trust_report(report: TrustReport, console: Console | None = None) -> 
 
     # 3. Discrepancies & Alerts Section
     alerts = []
+    for sec in diff.security_flags:
+        alerts.append(f"[bold red]🚨 CRITICAL SECURITY INJECTION:[/bold red] {sec}")
+    for stub in diff.deceptive_stubs:
+        alerts.append(f"[bold red]🚨 DECEPTIVE STUB DETECTED:[/bold red] {stub}")
     if diff.sensitive_unclaimed_changes:
         alerts.append(
             f"[bold red]🚨 CRITICAL STEALTH MODIFICATIONS:[/bold red] {', '.join(diff.sensitive_unclaimed_changes)}"

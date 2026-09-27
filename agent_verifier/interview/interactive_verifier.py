@@ -42,6 +42,8 @@ class InteractiveVerifierSession:
         has_issues = (
             report.verdict != Verdict.VERIFIED
             or bool(report.diff_verification.unclaimed_changes)
+            or bool(report.diff_verification.security_flags)
+            or bool(report.diff_verification.deceptive_stubs)
             or bool(report.test_verification.weakened_assertions_detected)
             or bool(report.scope_verification.out_of_scope_files)
             or bool(report.spec_compliance.unrequested_drift)
@@ -52,7 +54,7 @@ class InteractiveVerifierSession:
 
         self.con.print(
             Panel(
-                "[bold white]agent-verify Interactive Discrepancy Review[/bold white]\n"
+                "[bold white]Argus 👁️ Interactive Discrepancy Review[/bold white]\n"
                 "[dim]Reviewing detected anomalies. Answer each question to confirm or reject deviations.[/dim]",
                 border_style="yellow",
             )
@@ -61,6 +63,38 @@ class InteractiveVerifierSession:
         clarifications: list[UserClarification] = []
         approved_unclaimed: list[str] = []
         approved_scope_exceptions: list[str] = []
+
+        # 0. Question on Security Injections
+        for sec_flag in list(report.diff_verification.security_flags):
+            q = f"🚨 CRITICAL SECURITY ALERT: {sec_flag}. Did you intentionally authorize this dangerous operation?"
+            approved = self._ask_confirm(q, default=False)
+            clarifications.append(
+                UserClarification(
+                    topic="security_injection",
+                    target=sec_flag,
+                    question=q,
+                    user_response="Authorized dangerous operation"
+                    if approved
+                    else "Rejected as dangerous code injection",
+                    authorized=approved,
+                )
+            )
+
+        # 0b. Question on Deceptive Stubs
+        for stub in list(report.diff_verification.deceptive_stubs):
+            q = f"🚨 DECEPTIVE STUB: {stub}. The agent left an unfinished stub/placeholder while claiming functionality. Accept this stub?"
+            approved = self._ask_confirm(q, default=False)
+            clarifications.append(
+                UserClarification(
+                    topic="deceptive_stub",
+                    target=stub,
+                    question=q,
+                    user_response="Accepted unfinished placeholder"
+                    if approved
+                    else "Rejected as deceptive incomplete code",
+                    authorized=approved,
+                )
+            )
 
         # 1. Question on Sensitive Undeclared Files
         for sensitive_file in list(report.diff_verification.sensitive_unclaimed_changes):

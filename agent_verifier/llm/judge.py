@@ -212,7 +212,23 @@ class LLMJudge:
             paragraphs = [p.strip() for p in spec_text.split("\n\n") if len(p.strip()) > 10]
             requirements = paragraphs[:5]
 
-        diff_evidence = diff_text.lower()
+        # Zero-Trust code evidence extraction:
+        # Strip out comments, TODOs, and stubs so an agent leaving "# TODO: implement X"
+        # or "raise NotImplementedError" is NOT credited with implementing the feature!
+        cleaned_diff_lines: list[str] = []
+        for line in diff_text.splitlines():
+            s = line.strip().lower()
+            if s.startswith(("#", "//", "/*", "*")):
+                continue
+            if re.search(r"\b(?:todo|fixme|xxx)\b", s):
+                continue
+            if s in ("pass", "...", "pass;", "{", "}"):
+                continue
+            if "notimplementederror" in s:
+                continue
+            cleaned_diff_lines.append(s)
+
+        diff_evidence = " ".join(cleaned_diff_lines)
         summary_evidence = agent_summary.lower()
         unmet: list[str] = []
         hallucinated: list[str] = []
