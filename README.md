@@ -1,18 +1,40 @@
-                                                                                     Argus 👁️
-
 <div align="center">
 
-[![PyPI version](https://img.shields.io/pypi/v/argus-verify.svg?color=blue)](https://pypi.org/project/argus-verify/)
-[![Python Versions](https://img.shields.io/pypi/pyversions/argus-verify.svg)](https://pypi.org/project/argus-verify/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![CI](https://github.com/Creater-jod/argus/actions/workflows/ci.yml/badge.svg)](https://github.com/Creater-jod/argus/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/Creater-jod/argus/actions/workflows/codeql.yml/badge.svg)](https://github.com/Creater-jod/argus/actions/workflows/codeql.yml)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+  <a href="https://github.com/Creater-jod/argus">
+    <img src="assets/logo.png" alt="Argus Logo" width="160" height="160" />
+  </a>
 
-**The all-seeing, zero-trust verification engine auditing AI coding agent claims in under 30 seconds.**  
-*Named after Argus Panoptes — the hundred-eyed guardian who never sleeps and watches every single diff.*
+  <br />
 
-[Quickstart](#-quickstart) • [Verification Pillars](#-the-four-verification-pillars) • [Zero-Trust Defense](#-zero-trust-adversarial-defense) • [CLI Reference](#-cli-reference) • [MCP Server](#-model-context-protocol-mcp) • [Git Hook](#-git-hook-integration)
+  <h1><b>A R G U S &nbsp; 👁️</b></h1>
+
+  <p>
+    <strong>The All-Seeing, Zero-Trust Verification Engine Auditing AI Coding Agents</strong>
+  </p>
+
+  <p>
+    <em>Never trust self-reported summaries &bull; Deterministic 30-second ground-truth diff audits</em>
+  </p>
+
+  <p>
+    <a href="https://pypi.org/project/argus-verify/"><img src="https://img.shields.io/badge/pypi-v0.1.0-blue.svg?logo=pypi&logoColor=white" alt="PyPI version" /></a>
+    <a href="https://pypi.org/project/argus-verify/"><img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg?logo=python&logoColor=white" alt="Python Versions" /></a>
+    <a href="https://github.com/Creater-jod/argus/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/Creater-jod/argus/ci.yml?branch=main&label=CI&logo=github" alt="CI" /></a>
+    <a href="https://github.com/Creater-jod/argus/actions/workflows/codeql.yml"><img src="https://img.shields.io/github/actions/workflow/status/Creater-jod/argus/codeql.yml?branch=main&label=CodeQL&logo=github" alt="CodeQL" /></a>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-yellow.svg" alt="License" /></a>
+    <a href="CONTRIBUTING.md"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome" /></a>
+  </p>
+
+  <p>
+    <a href="#-quickstart"><b>Quickstart</b></a> &bull;
+    <a href="#-the-four-verification-pillars"><b>Verification Pillars</b></a> &bull;
+    <a href="#-zero-trust-adversarial-defense"><b>Zero-Trust Defense</b></a> &bull;
+    <a href="#-cli-reference"><b>CLI Reference</b></a> &bull;
+    <a href="#-model-context-protocol-mcp"><b>MCP Server</b></a> &bull;
+    <a href="#-git-hook-integration"><b>Git Hook</b></a>
+  </p>
+
+  <br />
 
 </div>
 
