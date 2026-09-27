@@ -293,7 +293,10 @@ class TestVerifier(BaseCheck):
                 claim_discrepancies.append(
                     f"Agent claimed {claim.claimed_tests_run} tests run, but actual execution ran {tests_run} tests."
                 )
-            if claim.claimed_tests_passed is not None and claim.claimed_tests_passed != tests_passed:
+            if (
+                claim.claimed_tests_passed is not None
+                and claim.claimed_tests_passed != tests_passed
+            ):
                 claim_discrepancies.append(
                     f"Agent claimed {claim.claimed_tests_passed} tests passed, but actual execution recorded {tests_passed} passed and {tests_failed} failed."
                 )
@@ -327,10 +330,7 @@ class TestVerifier(BaseCheck):
         if weakened_assertions or exit_code != 0:
             status = CheckStatus.FAIL
         elif (
-            trivially_passing
-            or tests_skipped > 0
-            or len(claim_discrepancies) > 0
-            or skip_execution
+            trivially_passing or tests_skipped > 0 or len(claim_discrepancies) > 0 or skip_execution
         ):
             status = CheckStatus.WARN
 

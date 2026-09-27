@@ -32,7 +32,12 @@ def _is_path_match(claimed: str, actual: str) -> bool:
 def _is_sensitive_file(path: str) -> bool:
     """Identify if a file path belongs to security, CI/CD, credential, dependency, or infra domains."""
     norm = path.replace("\\", "/").lower()
-    if ".github/workflows" in norm or ".gitlab-ci" in norm or ".circleci" in norm or "jenkins" in norm:
+    if (
+        ".github/workflows" in norm
+        or ".gitlab-ci" in norm
+        or ".circleci" in norm
+        or "jenkins" in norm
+    ):
         return True
     if norm.endswith(".env") or "/.env" in norm or ".env." in norm:
         return True
@@ -84,7 +89,9 @@ def scan_diff_for_deceptions_and_security(
                 stripped,
                 re.IGNORECASE,
             ):
-                stubs.append(f"{file_diff.path}:{line_no} - Unimplemented stub exception: '{stripped}'")
+                stubs.append(
+                    f"{file_diff.path}:{line_no} - Unimplemented stub exception: '{stripped}'"
+                )
             elif re.search(r"\b(?:todo!|unimplemented!)\(", stripped):
                 stubs.append(f"{file_diff.path}:{line_no} - Unimplemented stub macro: '{stripped}'")
             elif re.search(
@@ -92,7 +99,9 @@ def scan_diff_for_deceptions_and_security(
                 stripped,
                 re.IGNORECASE,
             ):
-                stubs.append(f"{file_diff.path}:{line_no} - Fake mock dictionary return: '{stripped}'")
+                stubs.append(
+                    f"{file_diff.path}:{line_no} - Fake mock dictionary return: '{stripped}'"
+                )
 
         # 2. Dangerous Security Injections & Smuggled Operations
         if re.search(r"\b(?:eval|exec)\s*\(", stripped):
@@ -106,7 +115,9 @@ def scan_diff_for_deceptions_and_security(
                 f"{file_diff.path}:{line_no} - Subprocess shell execution (shell=True): '{stripped}'"
             )
         elif re.search(r"\bos\.system\s*\(", stripped):
-            security.append(f"{file_diff.path}:{line_no} - OS system command execution: '{stripped}'")
+            security.append(
+                f"{file_diff.path}:{line_no} - OS system command execution: '{stripped}'"
+            )
         elif re.search(r"\bverify\s*=\s*False\b", stripped):
             security.append(
                 f"{file_diff.path}:{line_no} - Disabled SSL certificate verification (verify=False): '{stripped}'"
@@ -210,9 +221,7 @@ class DiffVerifier(BaseCheck):
             notes = f"Diff mismatch: {', '.join(fail_notes)}."
         elif len(fabricated) == 1 or len(all_stubs) == 1:
             status = CheckStatus.WARN
-            notes = (
-                f"Minor discrepancy: {all_stubs[0] if all_stubs else f'1 claimed file had no detected changes ({fabricated[0]})'}."
-            )
+            notes = f"Minor discrepancy: {all_stubs[0] if all_stubs else f'1 claimed file had no detected changes ({fabricated[0]})'}."
         else:
             status = CheckStatus.PASS
             notes = (

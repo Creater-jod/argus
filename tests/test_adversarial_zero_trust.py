@@ -67,6 +67,7 @@ def test_test_claim_falsification_detected():
     # Test runner output showing only 2 tests
     output = "===== 2 passed in 0.10s ====="
     from agent_verifier.checks.test_verifier import parse_pytest_output
+
     total, passed, failed, skipped = parse_pytest_output(output)
 
     # Verify claim comparison logic directly
@@ -153,7 +154,10 @@ def test_deceptive_stub_and_placeholder_detected():
     # Verifier MUST catch deceptive stubs and FAIL
     assert diff_res.status == CheckStatus.FAIL
     assert len(diff_res.deceptive_stubs) >= 1
-    assert any("Unimplemented stub exception" in s or "Placeholder comment" in s for s in diff_res.deceptive_stubs)
+    assert any(
+        "Unimplemented stub exception" in s or "Placeholder comment" in s
+        for s in diff_res.deceptive_stubs
+    )
     assert any("DECEPTIVE STUB DETECTED" in d for d in diff_res.discrepancies)
 
     # Spec verifier MUST NOT credit the stub as real code
@@ -208,4 +212,3 @@ def test_assertion_dilution_and_xfail_detected():
     assert len(findings) >= 2
     assert any("xfail" in f for f in findings)
     assert any("Diluted/weakened assertion" in f for f in findings)
-

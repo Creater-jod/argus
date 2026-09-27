@@ -40,7 +40,9 @@ def test_pipeline_handles_custom_spec(tmp_path: Path):
 
     pipeline = VerificationPipeline()
     spec_file = tmp_path / "spec.md"
-    spec_file.write_text("- [ ] Must update quantum telemetry\n- [ ] Must log tachyon pulse", encoding="utf-8")
+    spec_file.write_text(
+        "- [ ] Must update quantum telemetry\n- [ ] Must log tachyon pulse", encoding="utf-8"
+    )
 
     claim = SessionClaim(summary="Updated quantum telemetry and logged tachyon pulse")
     report = pipeline.run(

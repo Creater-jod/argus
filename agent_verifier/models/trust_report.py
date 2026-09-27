@@ -239,9 +239,7 @@ class TrustReport(BaseModel):
         default=0.0, description="Total verification duration in seconds"
     )
 
-    def compute_verdict(
-        self, thresholds: VerdictThresholds | None = None
-    ) -> Verdict:
+    def compute_verdict(self, thresholds: VerdictThresholds | None = None) -> Verdict:
         """Compute the aggregate verdict based on sub-check statuses.
 
         Args:
@@ -315,9 +313,7 @@ class TrustReport(BaseModel):
                 f"{len(self.diff_verification.unclaimed_changes)} undeclared file(s)"
             )
         if len(self.diff_verification.fabricated_claims) > 0:
-            warn_reasons.append(
-                f"{len(self.diff_verification.fabricated_claims)} phantom claim(s)"
-            )
+            warn_reasons.append(f"{len(self.diff_verification.fabricated_claims)} phantom claim(s)")
         if len(self.diff_verification.deceptive_stubs) == 1:
             warn_reasons.append(
                 f"1 deceptive placeholder stub in diff ({self.diff_verification.deceptive_stubs[0]})"
@@ -331,9 +327,7 @@ class TrustReport(BaseModel):
                 f"{len(self.spec_compliance.hallucinated_claims)} hallucinated requirement claim(s)"
             )
         if len(self.spec_compliance.unrequested_drift) > 0:
-            warn_reasons.append(
-                f"{len(self.spec_compliance.unrequested_drift)} spec drift item(s)"
-            )
+            warn_reasons.append(f"{len(self.spec_compliance.unrequested_drift)} spec drift item(s)")
         if self.scope_verification.blast_radius_risk_level in t.suspicious_risk_levels:
             warn_reasons.append(
                 f"Blast radius risk: {self.scope_verification.blast_radius_risk_level.value}"

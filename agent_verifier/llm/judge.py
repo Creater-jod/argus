@@ -267,7 +267,11 @@ class LLMJudge:
             ("auth", ["auth", "login", "session", "oauth", "jwt"], "authentication/login"),
             ("payment", ["payment", "billing", "stripe", "invoice", "charge"], "payment/billing"),
             ("database", ["migration", "schema", "alter table", "drop table"], "database schema"),
-            ("security", ["secret", "credential", "password", "api_key", "token"], "security/credentials"),
+            (
+                "security",
+                ["secret", "credential", "password", "api_key", "token"],
+                "security/credentials",
+            ),
             ("config", ["dockerfile", "docker-compose", "nginx", ".env"], "infrastructure/config"),
             ("cicd", ["workflow", "github/workflows", "ci.yml", "deploy"], "CI/CD pipeline"),
         ]

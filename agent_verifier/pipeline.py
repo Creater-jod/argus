@@ -185,4 +185,3 @@ class VerificationPipeline:
                 status=CheckStatus.FAIL,
                 notes=f"Internal error during {name} verification: {e}",
             )
-
