@@ -25,6 +25,7 @@ from agent_verifier.interview import (
     conduct_interactive_verification,
     run_intake_interview,
 )
+from agent_verifier.llm import LLMJudge
 from agent_verifier.models import (
     CheckStatus,
     DiffVerificationResult,
@@ -70,6 +71,7 @@ __all__ = [
     "TestVerifier",
     "ScopeVerifier",
     "SpecVerifier",
+    "LLMJudge",
     "BaseCheck",
     "FileDiff",
     "GitDiffSummary",

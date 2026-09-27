@@ -27,13 +27,24 @@ def test_pipeline_runs_on_clean_repo():
 
 
 def test_pipeline_handles_custom_spec(tmp_path: Path):
+    import subprocess
+
+    repo_dir = tmp_path / "repo"
+    repo_dir.mkdir()
+    subprocess.run(["git", "init"], cwd=repo_dir, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=repo_dir, check=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo_dir, check=True)
+    (repo_dir / "README.md").write_text("initial", encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=repo_dir, check=True)
+    subprocess.run(["git", "commit", "-m", "init"], cwd=repo_dir, check=True)
+
     pipeline = VerificationPipeline()
     spec_file = tmp_path / "spec.md"
-    spec_file.write_text("- [ ] Must update auth tokens\n- [ ] Must log user IP", encoding="utf-8")
+    spec_file.write_text("- [ ] Must update quantum telemetry\n- [ ] Must log tachyon pulse", encoding="utf-8")
 
-    claim = SessionClaim(summary="Updated auth tokens and logged user IP")
+    claim = SessionClaim(summary="Updated quantum telemetry and logged tachyon pulse")
     report = pipeline.run(
-        repo_path=Path("."),
+        repo_path=repo_dir,
         claim=claim,
         spec_path=str(spec_file),
         skip_tests=True,

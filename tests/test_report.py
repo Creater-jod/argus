@@ -59,7 +59,8 @@ def test_console_render():
     render_trust_report(report, console=console)
     output = buf.getvalue()
 
-    assert "agent-verify Trust Report" in output
+    assert "Argus" in output
+    assert "Trust Report" in output
     assert "VERIFIED" in output
     assert "Diff Alignment" in output
     assert "Test & Anti-Gaming" in output
@@ -82,7 +83,7 @@ def test_markdown_export():
     report = make_dummy_report(Verdict.VERIFIED)
     md = export_markdown(report)
 
-    assert "# `agent-verify` Trust Report" in md
+    assert "Argus (`argus-verify`) Trust Report" in md
     assert "VERIFIED" in md
     assert "| **1. Diff Alignment** |" in md
     assert "| **2. Test & Anti-Gaming** |" in md

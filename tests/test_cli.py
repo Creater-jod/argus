@@ -15,7 +15,7 @@ runner = CliRunner()
 def test_cli_version():
     result = runner.invoke(app, ["version"])
     assert result.exit_code == 0
-    assert "agent-verify" in result.stdout
+    assert "Argus" in result.stdout
     assert "0.1.0" in result.stdout
 
 

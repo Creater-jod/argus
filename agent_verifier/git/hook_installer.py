@@ -6,23 +6,27 @@ import stat
 from pathlib import Path
 
 HOOK_SCRIPT_TEMPLATE = """#!/bin/sh
-# agent-verify pre-push hook
+# Argus (agent-verify) pre-push hook
 # Audits agent session claims before code is pushed to remote repositories.
 
-echo "🛡️  [agent-verify] Running pre-push verification check..."
+echo "👁️  [Argus] Running pre-push verification check..."
 
-# Run agent-verify in quick check mode
-agent-verify verify --repo "$(git rev-parse --show-toplevel)" --format rich
+# Run Argus verification (with fallback to agent-verify)
+if command -v argus >/dev/null 2>&1; then
+    argus verify --repo "$(git rev-parse --show-toplevel)" --format rich
+else
+    agent-verify verify --repo "$(git rev-parse --show-toplevel)" --format rich
+fi
 EXIT_CODE=$?
 
 if [ $EXIT_CODE -ne 0 ]; then
     echo ""
-    echo "❌ [agent-verify] Pre-push verification FAILED or flagged SUSPICIOUS changes."
+    echo "❌ [Argus] Pre-push verification FAILED or flagged SUSPICIOUS changes."
     echo "   Push aborted. Review the findings above or bypass with --no-verify if intentional."
     exit 1
 fi
 
-echo "✅ [agent-verify] Verification passed. Proceeding with push."
+echo "✅ [Argus] Verification passed. Proceeding with push."
 exit 0
 """
 

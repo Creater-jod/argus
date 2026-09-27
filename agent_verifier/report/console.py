@@ -52,7 +52,7 @@ def render_trust_report(report: TrustReport, console: Console | None = None) -> 
     con.print(
         Panel(
             verdict_text,
-            title="[bold white]agent-verify Trust Report[/bold white]",
+            title="[bold white]Argus 👁️ Trust Report[/bold white]",
             border_style=border_style,
             box=ROUNDED,
             padding=(1, 2),

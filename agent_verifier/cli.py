@@ -32,8 +32,8 @@ from agent_verifier.report.json_export import export_json, load_json_report
 from agent_verifier.report.markdown import export_markdown
 
 app = typer.Typer(
-    name="agent-verify",
-    help="AI Agent Verification Layer -- audits agent claims in 30 seconds.",
+    name="argus",
+    help="Argus 👁️ -- The All-Seeing Verification Engine for AI Coding Agents.",
     add_completion=False,
 )
 console = Console(legacy_windows=False)
@@ -195,12 +195,12 @@ def install_hook(
         help="Overwrite existing pre-push hook if present",
     ),
 ) -> None:
-    """Install agent-verify pre-push git hook to automatically audit commits before push."""
+    """Install Argus (agent-verify) pre-push git hook to automatically audit commits before push."""
     try:
         hook_path = install_pre_push_hook(repo, force=force)
         console.print(
             f"[bold green]✅ Pre-push hook successfully installed at:[/bold green] [cyan]{hook_path}[/cyan]\n"
-            "Commits will now be automatically audited before every 'git push'."
+            "Commits will now be automatically audited by Argus before every 'git push'."
         )
     except Exception as e:
         console.print(f"[bold red]❌ Failed to install hook:[/bold red] {e}")
@@ -216,13 +216,13 @@ def uninstall_git_hook(
         help="Git repository path",
     ),
 ) -> None:
-    """Uninstall the agent-verify pre-push git hook."""
+    """Uninstall the Argus (agent-verify) pre-push git hook."""
     try:
         removed = uninstall_hook(repo)
         if removed:
-            console.print("[green]✅ agent-verify hook uninstalled successfully.[/green]")
+            console.print("[green]✅ Argus hook uninstalled successfully.[/green]")
         else:
-            console.print("[yellow]Hook was not found or not managed by agent-verify.[/yellow]")
+            console.print("[yellow]Hook was not found or not managed by Argus.[/yellow]")
     except Exception as e:
         console.print(f"[bold red]❌ Failed to uninstall hook:[/bold red] {e}")
         raise typer.Exit(code=1)
@@ -237,12 +237,12 @@ def check_hook(
         help="Git repository path",
     ),
 ) -> None:
-    """Check if the agent-verify pre-push hook is installed."""
+    """Check if the Argus pre-push hook is installed."""
     installed = is_hook_installed(repo)
     if installed:
-        console.print("[bold green]✅ agent-verify hook is ACTIVE.[/bold green]")
+        console.print("[bold green]✅ Argus hook is ACTIVE.[/bold green]")
     else:
-        console.print("[bold yellow]⚠️  agent-verify hook is NOT installed.[/bold yellow]")
+        console.print("[bold yellow]⚠️  Argus hook is NOT installed.[/bold yellow]")
 
 
 @app.command()
@@ -327,9 +327,9 @@ def grill_me(
 
 @app.command()
 def version() -> None:
-    """Display agent-verify version and runtime info."""
+    """Display Argus version and runtime info."""
     console.print(
-        f"[bold cyan]agent-verify[/bold cyan] version [bold white]{agent_verifier.__version__}[/bold white]"
+        f"[bold cyan]Argus 👁️[/bold cyan] ([dim]argus-verify[/dim]) version [bold white]{agent_verifier.__version__}[/bold white]"
     )
 
 

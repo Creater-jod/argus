@@ -3,14 +3,14 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "agent-verify"
+name = "argus-verify"
 version = "0.1.0"
-description = "🛡️ Independent verification layer auditing AI coding agent claims — 30-second Trust Reports"
+description = "👁️ Argus — The all-seeing verification engine auditing AI coding agent claims"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [
-    { name = "agent-verify contributors", email = "jrnikiljr@gmail.com" }
+    { name = "Argus contributors", email = "jrnikiljr@gmail.com" }
 ]
 keywords = [
     "ai",
@@ -65,10 +65,11 @@ Issues = "https://github.com/jrnikil/agent-verify/issues"
 Changelog = "https://github.com/jrnikil/agent-verify/blob/main/CHANGELOG.md"
 
 [project.scripts]
+argus = "agent_verifier.cli:app"
 agent-verify = "agent_verifier.cli:app"
 
 [tool.hatch.build.targets.wheel]
-packages = ["agent_verifier"]
+packages = ["agent_verifier", "argus"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

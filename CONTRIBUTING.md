@@ -1,6 +1,6 @@
-# Contributing to `agent-verify` 🛡️
+# Contributing to Argus (`argus-verify`) 👁️
 
-Thank you for your interest in contributing to `agent-verify`! We welcome contributions from developers, researchers, and AI practitioners who want to help make autonomous AI coding safer and more reliable.
+Thank you for your interest in contributing to **Argus**! We welcome contributions from developers, researchers, and AI practitioners who want to help make autonomous AI coding safer, verifiable, and zero-trust.
 
 ---
 
@@ -12,13 +12,13 @@ All contributors and maintainers are expected to abide by our [Code of Conduct](
 
 ## 🛠️ Development Setup
 
-`agent-verify` uses [`uv`](https://github.com/astral-sh/uv) for fast, deterministic Python dependency management.
+`argus-verify` uses [`uv`](https://github.com/astral-sh/uv) for fast, deterministic Python dependency management.
 
 ### 1. Fork & Clone
 
 ```bash
-git clone https://github.com/jrnikil/agent-verify.git
-cd agent-verify
+git clone https://github.com/jrnikil/argus-verify.git
+cd argus-verify
 ```
 
 ### 2. Create Virtual Environment & Install Dependencies
