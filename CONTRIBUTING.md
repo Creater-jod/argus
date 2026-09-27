@@ -17,8 +17,8 @@ All contributors and maintainers are expected to abide by our [Code of Conduct](
 ### 1. Fork & Clone
 
 ```bash
-git clone https://github.com/jrnikil/argus-verify.git
-cd argus-verify
+git clone https://github.com/Creater-jod/argus.git
+cd argus
 ```
 
 ### 2. Create Virtual Environment & Install Dependencies

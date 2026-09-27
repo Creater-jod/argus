@@ -58,11 +58,11 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/jrnikil/agent-verify"
-Documentation = "https://github.com/jrnikil/agent-verify#readme"
-Repository = "https://github.com/jrnikil/agent-verify"
-Issues = "https://github.com/jrnikil/agent-verify/issues"
-Changelog = "https://github.com/jrnikil/agent-verify/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/Creater-jod/argus"
+Documentation = "https://github.com/Creater-jod/argus#readme"
+Repository = "https://github.com/Creater-jod/argus"
+Issues = "https://github.com/Creater-jod/argus/issues"
+Changelog = "https://github.com/Creater-jod/argus/blob/main/CHANGELOG.md"
 
 [project.scripts]
 argus = "agent_verifier.cli:app"

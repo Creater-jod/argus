@@ -5,8 +5,8 @@
 [![PyPI version](https://img.shields.io/pypi/v/argus-verify.svg?color=blue)](https://pypi.org/project/argus-verify/)
 [![Python Versions](https://img.shields.io/pypi/pyversions/argus-verify.svg)](https://pypi.org/project/argus-verify/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![CI](https://github.com/jrnikil/argus-verify/actions/workflows/ci.yml/badge.svg)](https://github.com/jrnikil/argus-verify/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/jrnikil/argus-verify/actions/workflows/codeql.yml/badge.svg)](https://github.com/jrnikil/argus-verify/actions/workflows/codeql.yml)
+[![CI](https://github.com/Creater-jod/argus/actions/workflows/ci.yml/badge.svg)](https://github.com/Creater-jod/argus/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/Creater-jod/argus/actions/workflows/codeql.yml/badge.svg)](https://github.com/Creater-jod/argus/actions/workflows/codeql.yml)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 **The all-seeing, zero-trust verification engine auditing AI coding agent claims in under 30 seconds.**  
@@ -326,8 +326,8 @@ We welcome community contributions, bug reports, and check engine ideas! Please 
 
 ```bash
 # Clone and setup development environment
-git clone https://github.com/jrnikil/argus-verify.git
-cd argus-verify
+git clone https://github.com/Creater-jod/argus.git
+cd argus
 uv sync --all-extras --dev
 uv run pytest
 ```
