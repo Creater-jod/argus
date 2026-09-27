@@ -1,0 +1,15 @@
+title: "[Idea] "
+labels: ["ideas"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Share an early idea, concept, or suggestion for discussion before opening a formal feature request.
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: Summary of Idea
+      description: What is your idea and why would it benefit AI agent verification?
+    validations:
+      required: true

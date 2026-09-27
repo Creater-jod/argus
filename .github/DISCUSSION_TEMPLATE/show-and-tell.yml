@@ -1,0 +1,15 @@
+title: "[Show & Tell] "
+labels: ["show-and-tell"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Show off something you built with `agent-verify` — e.g. a custom CI workflow, an agent benchmark harness, or a custom verification check!
+
+  - type: textarea
+    id: project
+    attributes:
+      label: What did you build?
+      description: Describe what you made, how it works, and share links if available.
+    validations:
+      required: true

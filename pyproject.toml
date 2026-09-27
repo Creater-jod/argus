@@ -1,0 +1,102 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "agent-verify"
+version = "0.1.0"
+description = "🛡️ Independent verification layer auditing AI coding agent claims — 30-second Trust Reports"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "agent-verify contributors", email = "jrnikiljr@gmail.com" }
+]
+keywords = [
+    "ai",
+    "agent",
+    "verification",
+    "trust",
+    "code-review",
+    "security",
+    "llm",
+    "testing",
+    "mcp",
+    "ast",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Security",
+]
+dependencies = [
+    "pydantic>=2.7.0",
+    "typer>=0.12.0",
+    "rich>=13.7.0",
+    "gitpython>=3.1.43",
+    "httpx>=0.27.0",
+    "networkx>=3.2",
+]
+
+[project.optional-dependencies]
+mcp = [
+    "mcp>=1.0.0",
+]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
+    "ruff>=0.4.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/jrnikil/agent-verify"
+Documentation = "https://github.com/jrnikil/agent-verify#readme"
+Repository = "https://github.com/jrnikil/agent-verify"
+Issues = "https://github.com/jrnikil/agent-verify/issues"
+Changelog = "https://github.com/jrnikil/agent-verify/blob/main/CHANGELOG.md"
+
+[project.scripts]
+agent-verify = "agent_verifier.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["agent_verifier"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "SIM", # flake8-simplify
+]
+ignore = [
+    "E501", # line too long (handled by formatter)
+    "B008", # do not perform function call in argument defaults (standard Typer idiom)
+    "B904", # within except clause raise ... from err
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
