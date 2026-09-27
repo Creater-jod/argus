@@ -35,6 +35,9 @@ class SessionClaim(BaseModel):
     allowed_paths: list[str] = Field(
         default_factory=list, description="Approved directories or glob patterns for this task"
     )
+    forbidden_paths: list[str] = Field(
+        default_factory=list, description="Strictly off-limits directories or glob patterns"
+    )
 
     @classmethod
     def from_file(cls, filepath: str | Path) -> SessionClaim:

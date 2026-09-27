@@ -1,8 +1,13 @@
-"""Scope boundary and call-graph blast radius verification engine."""
+"""Scope boundary and call-graph blast radius verification engine.
+
+Enforces that modifications stay within allowed file/directory boundaries
+and quantifies the downstream impact via AST-based call-graph analysis.
+"""
 
 from __future__ import annotations
 
 import fnmatch
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -10,7 +15,9 @@ from agent_verifier.checks.base import BaseCheck
 from agent_verifier.git.diff_parser import GitDiffSummary, parse_git_diff
 from agent_verifier.graph.call_graph import compute_repo_blast_radius
 from agent_verifier.models.session_claim import SessionClaim
-from agent_verifier.models.trust_report import CheckStatus, ScopeVerificationResult
+from agent_verifier.models.trust_report import CheckStatus, RiskLevel, ScopeVerificationResult
+
+logger = logging.getLogger("agent_verify.checks.scope")
 
 
 def _is_path_allowed(file_path: str, allowed_patterns: list[str]) -> bool:
@@ -31,12 +38,9 @@ def _is_path_allowed(file_path: str, allowed_patterns: list[str]) -> bool:
         if fnmatch.fnmatch(norm_file, norm_pat):
             return True
         # Directory prefix match (e.g. "src/" or "agent_verifier/")
-        if (
-            norm_pat.endswith("/")
-            and norm_file.startswith(norm_pat)
-            or not norm_pat.endswith("/")
-            and norm_file.startswith(norm_pat + "/")
-        ):
+        if norm_pat.endswith("/") and norm_file.startswith(norm_pat):
+            return True
+        if not norm_pat.endswith("/") and norm_file.startswith(norm_pat + "/"):
             return True
         if norm_pat in norm_file:
             return True
@@ -68,7 +72,16 @@ class ScopeVerifier(BaseCheck):
 
         changed_files = diff_summary.changed_file_paths
         allowed_paths = claim.allowed_paths
+        forbidden_paths = claim.forbidden_paths
 
+        # 1. Check strictly forbidden boundaries
+        forbidden_violations: list[str] = []
+        if forbidden_paths:
+            for f in changed_files:
+                if _is_path_allowed(f, forbidden_paths):
+                    forbidden_violations.append(f)
+
+        # 2. Check allowed boundaries
         out_of_scope_files: list[str] = []
         if allowed_paths:
             for f in changed_files:
@@ -78,17 +91,24 @@ class ScopeVerifier(BaseCheck):
         # Compute blast radius
         skip_graph = context.get("skip_graph_analysis", False)
         if not skip_graph and changed_files:
-            blast = compute_repo_blast_radius(
-                repo_path=repo_path,
-                changed_files=changed_files,
-                allowed_paths=allowed_paths,
-            )
-            risk_level = blast.risk_level
-            impacted_count = blast.impacted_symbols_count
-            out_of_scope_symbols = blast.out_of_scope_impacts
-            graph_notes = blast.notes
+            try:
+                blast = compute_repo_blast_radius(
+                    repo_path=repo_path,
+                    changed_files=changed_files,
+                    allowed_paths=allowed_paths,
+                )
+                risk_level = blast.risk_level
+                impacted_count = blast.impacted_symbols_count
+                out_of_scope_symbols = blast.out_of_scope_impacts
+                graph_notes = blast.notes
+            except Exception as e:
+                logger.warning("Call graph analysis failed: %s", e)
+                risk_level = RiskLevel.LOW
+                impacted_count = 0
+                out_of_scope_symbols = []
+                graph_notes = f"Call graph analysis failed: {e}"
         else:
-            risk_level = "LOW"
+            risk_level = RiskLevel.LOW
             impacted_count = 0
             out_of_scope_symbols = []
             graph_notes = "Call graph analysis skipped or no files modified."
@@ -97,7 +117,13 @@ class ScopeVerifier(BaseCheck):
         status = CheckStatus.PASS
         notes_parts = []
 
-        if out_of_scope_files:
+        if forbidden_violations:
+            notes_parts.append(
+                f"🚨 FORBIDDEN SCOPE BREACH: {len(forbidden_violations)} file(s) modified in strictly forbidden areas: "
+                f"{', '.join(forbidden_violations[:3])}."
+            )
+            status = CheckStatus.FAIL
+        elif out_of_scope_files:
             notes_parts.append(
                 f"🚨 SCOPE VIOLATION: {len(out_of_scope_files)} file(s) modified outside allowed scope: "
                 f"{', '.join(out_of_scope_files[:3])}."
@@ -109,7 +135,7 @@ class ScopeVerifier(BaseCheck):
             )
             status = CheckStatus.WARN
 
-        if risk_level in ("HIGH", "CRITICAL"):
+        if risk_level in (RiskLevel.HIGH, RiskLevel.CRITICAL):
             notes_parts.append(f"High blast radius risk ({risk_level}).")
             if status != CheckStatus.FAIL:
                 status = CheckStatus.WARN
@@ -125,6 +151,7 @@ class ScopeVerifier(BaseCheck):
         return ScopeVerificationResult(
             status=status,
             allowed_boundaries=allowed_paths,
+            forbidden_scope_violations=forbidden_violations,
             out_of_scope_files=out_of_scope_files,
             out_of_scope_callers_or_callees=out_of_scope_symbols,
             blast_radius_risk_level=risk_level,

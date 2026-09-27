@@ -240,6 +240,7 @@ class TestVerifier(BaseCheck):
         tests_failed = 0
         tests_skipped = 0
         output_snippet = ""
+        notes_parts: list[str] = []
 
         if not skip_execution:
             runner_name, cmd = detect_test_runner(repo_path)
@@ -272,13 +273,26 @@ class TestVerifier(BaseCheck):
             except Exception as e:
                 exit_code = 1
                 output_snippet = f"Failed to execute test runner {cmd}: {e}"
+        claim_discrepancies: list[str] = []
+        if not skip_execution:
+            if claim.claimed_tests_run is not None and claim.claimed_tests_run != tests_run:
+                claim_discrepancies.append(
+                    f"Agent claimed {claim.claimed_tests_run} tests run, but actual execution ran {tests_run} tests."
+                )
+            if claim.claimed_tests_passed is not None and claim.claimed_tests_passed != tests_passed:
+                claim_discrepancies.append(
+                    f"Agent claimed {claim.claimed_tests_passed} tests passed, but actual execution recorded {tests_passed} passed and {tests_failed} failed."
+                )
         else:
             # When test execution is simulated or skipped in context
             tests_run = claim.claimed_tests_run or 0
             tests_passed = claim.claimed_tests_passed or 0
+            if claim.claimed_tests_run or claim.claimed_tests_passed:
+                notes_parts.append(
+                    f"⚠️ Test suite execution skipped by request. Claimed test passes ({tests_passed}/{tests_run}) unverified."
+                )
 
         # Status determination
-        notes_parts = []
         if weakened_assertions:
             notes_parts.append(
                 f"🚨 ANTI-GAMING ALERT: {len(weakened_assertions)} weakened assertion(s) or skips detected!"
@@ -287,6 +301,9 @@ class TestVerifier(BaseCheck):
             notes_parts.append(
                 f"⚠️ {len(trivially_passing)} assertion-less or trivial test(s) flagged."
             )
+        if claim_discrepancies:
+            for cd in claim_discrepancies:
+                notes_parts.append(f"🚨 TEST CLAIM DISCREPANCY: {cd}")
         if exit_code != 0:
             notes_parts.append(f"❌ Test runner failed with exit code {exit_code}.")
         else:
@@ -295,7 +312,12 @@ class TestVerifier(BaseCheck):
         status = CheckStatus.PASS
         if weakened_assertions or exit_code != 0:
             status = CheckStatus.FAIL
-        elif trivially_passing or tests_skipped > 0:
+        elif (
+            trivially_passing
+            or tests_skipped > 0
+            or len(claim_discrepancies) > 0
+            or skip_execution
+        ):
             status = CheckStatus.WARN
 
         return TestVerificationResult(
@@ -308,6 +330,7 @@ class TestVerifier(BaseCheck):
             tests_skipped=tests_skipped,
             weakened_assertions_detected=weakened_assertions,
             trivially_passing_tests_flagged=trivially_passing,
+            claim_discrepancies=claim_discrepancies,
             output_snippet=output_snippet.strip() or None,
             notes=" ".join(notes_parts),
         )

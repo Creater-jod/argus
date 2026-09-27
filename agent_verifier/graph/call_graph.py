@@ -1,19 +1,28 @@
-"""Call graph construction and blast radius evaluation using NetworkX."""
+"""Call graph construction and blast radius evaluation using NetworkX.
+
+Builds a directed call graph from Python AST symbol extraction and
+computes upstream/downstream impact to quantify the blast radius
+of code changes.
+"""
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import networkx as nx
 from pydantic import BaseModel, Field
 
 from agent_verifier.graph.ast_analyzer import Symbol, extract_symbols_from_file
+from agent_verifier.models.trust_report import RiskLevel
+
+logger = logging.getLogger("agent_verify.graph")
 
 
 class BlastRadiusResult(BaseModel):
     """Calculated blast radius impact of changed files/symbols."""
 
-    risk_level: str = "LOW"  # LOW, MEDIUM, HIGH, CRITICAL
+    risk_level: RiskLevel = RiskLevel.LOW
     changed_symbols: list[str] = Field(default_factory=list)
     impacted_symbols: list[str] = Field(default_factory=list)
     impacted_symbols_count: int = 0
@@ -85,9 +94,19 @@ class CallGraph:
             self.add_file(py_file)
             count += 1
             if count >= max_files:
+                logger.warning(
+                    "Call graph file limit reached (%d). Remaining Python files skipped.",
+                    max_files,
+                )
                 break
 
         self.link_calls()
+        logger.info(
+            "Call graph built: %d files, %d nodes, %d edges",
+            count,
+            self.graph.number_of_nodes(),
+            self.graph.number_of_edges(),
+        )
 
     def get_blast_radius(
         self,
@@ -118,8 +137,8 @@ class CallGraph:
                     self.graph.reverse(copy=False), c_node, cutoff=max_hops
                 )
                 impacted_nodes.update(upstream.keys())
-            except Exception:
-                pass
+            except nx.NetworkXError as e:
+                logger.debug("Upstream traversal error for %s: %s", c_node, e)
 
             # Callees (downstream impact)
             try:
@@ -127,8 +146,8 @@ class CallGraph:
                     self.graph, c_node, cutoff=max_hops
                 )
                 impacted_nodes.update(downstream.keys())
-            except Exception:
-                pass
+            except nx.NetworkXError as e:
+                logger.debug("Downstream traversal error for %s: %s", c_node, e)
 
         impacted_nodes = impacted_nodes - changed_nodes
 
@@ -147,19 +166,20 @@ class CallGraph:
                     out_of_scope_impacts.append(f"{node} in {f}")
 
         impact_count = len(impacted_nodes)
-        if impact_count == 0 or impact_count <= 4 and not out_of_scope_impacts:
-            risk = "LOW"
+
+        if impact_count == 0 or (impact_count <= 4 and not out_of_scope_impacts):
+            risk = RiskLevel.LOW
         elif impact_count <= 8 and len(out_of_scope_impacts) <= 1:
-            risk = "MEDIUM"
+            risk = RiskLevel.MEDIUM
         elif impact_count <= 15 or len(out_of_scope_impacts) <= 3:
-            risk = "HIGH"
+            risk = RiskLevel.HIGH
         else:
-            risk = "CRITICAL"
+            risk = RiskLevel.CRITICAL
 
         notes = (
             f"Blast radius: {len(changed_nodes)} source symbol(s) -> "
             f"{impact_count} impacted symbol(s) across {len(impacted_files_set)} file(s). "
-            f"Risk: {risk}."
+            f"Risk: {risk.value}."
         )
         if out_of_scope_impacts:
             notes += (

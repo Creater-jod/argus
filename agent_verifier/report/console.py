@@ -103,7 +103,7 @@ def render_trust_report(report: TrustReport, console: Console | None = None) -> 
 
     # Row 3: Scope Verification
     scope = report.scope_verification
-    scope_details = [f"Blast Risk: [bold]{scope.blast_radius_risk_level}[/bold]"]
+    scope_details = [f"Blast Risk: [bold]{scope.blast_radius_risk_level.value}[/bold]"]
     if scope.out_of_scope_files:
         scope_details.append(f"[red]{len(scope.out_of_scope_files)} out-of-scope files[/red]")
     if scope.impacted_symbols_count > 0:
@@ -128,6 +128,10 @@ def render_trust_report(report: TrustReport, console: Console | None = None) -> 
 
     # 3. Discrepancies & Alerts Section
     alerts = []
+    if diff.sensitive_unclaimed_changes:
+        alerts.append(
+            f"[bold red]🚨 CRITICAL STEALTH MODIFICATIONS:[/bold red] {', '.join(diff.sensitive_unclaimed_changes)}"
+        )
     if diff.unclaimed_changes:
         alerts.append(
             f"[bold red]Undeclared Modifications:[/bold red] {', '.join(diff.unclaimed_changes)}"
@@ -136,12 +140,19 @@ def render_trust_report(report: TrustReport, console: Console | None = None) -> 
         alerts.append(
             f"[bold yellow]Phantom Claims (Untouched):[/bold yellow] {', '.join(diff.fabricated_claims)}"
         )
+    for cd in test.claim_discrepancies:
+        alerts.append(f"[bold red]🚨 Test Claim Discrepancy:[/bold red] {cd}")
     for wa in test.weakened_assertions_detected:
         alerts.append(f"[bold red]Anti-Gaming Flag:[/bold red] {wa}")
     for tp in test.trivially_passing_tests_flagged:
         alerts.append(f"[bold yellow]Trivial Test Flag:[/bold yellow] {tp}")
+    for fb in scope.forbidden_scope_violations:
+        alerts.append(f"[bold red]🚨 FORBIDDEN SCOPE BREACH:[/bold red] {fb}")
     for oos in scope.out_of_scope_files:
-        alerts.append(f"[bold red]Scope Violation:[/bold red] {oos}")
+        if oos not in scope.forbidden_scope_violations:
+            alerts.append(f"[bold red]Scope Violation:[/bold red] {oos}")
+    for hal in spec.hallucinated_claims:
+        alerts.append(f"[bold red]🚨 Hallucinated Feature Claim:[/bold red] {hal}")
     for unmet in spec.unmet_requirements:
         alerts.append(f"[bold red]Unmet Requirement:[/bold red] {unmet}")
     for drift in spec.unrequested_drift:

@@ -44,6 +44,7 @@ def test_run_intake_interview_simulation():
         "src/middleware/*, tests/*",  # allowed scope
         "src/core/security.py",  # forbidden scope
         "Reject requests exceeding 60/min;Return 429 Too Many Requests",  # criteria
+        "rate_limit_middleware, RateLimiter",  # expected symbols
         "pytest tests/test_rate_limit.py",  # tests
         "Redis cluster compatibility",  # constraints
     ]
@@ -60,4 +61,5 @@ def test_run_intake_interview_simulation():
     assert "src/middleware/*" in result.allowed_scope
     assert "src/core/security.py" in result.forbidden_scope
     assert len(result.acceptance_criteria) == 2
+    assert "rate_limit_middleware" in result.expected_symbols
     assert result.test_expectations == "pytest tests/test_rate_limit.py"

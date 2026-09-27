@@ -28,6 +28,10 @@ class IntakeInterview(BaseModel):
     test_expectations: str = Field(
         default="", description="Required test commands and passing expectations"
     )
+    expected_symbols: list[str] = Field(
+        default_factory=list,
+        description="Key function, method, or class names that must be present in code",
+    )
     constraints: str = Field(
         default="", description="Architecture, performance, or backwards-compatibility rules"
     )
@@ -87,6 +91,17 @@ class IntakeInterview(BaseModel):
                 ]
             )
 
+        if self.expected_symbols:
+            lines.extend(
+                [
+                    "## 🧩 Required Code Symbols",
+                    "",
+                ]
+            )
+            for sym in self.expected_symbols:
+                lines.append(f"- `def {sym}` or `class {sym}`")
+            lines.append("")
+
         if self.constraints:
             lines.extend(
                 [
@@ -103,6 +118,7 @@ class IntakeInterview(BaseModel):
         """Create baseline SessionClaim from interview parameters."""
         return SessionClaim(
             allowed_paths=self.allowed_scope,
+            forbidden_paths=self.forbidden_scope,
             spec_text=self.to_markdown_spec(),
             summary=self.objective,
         )
@@ -162,13 +178,20 @@ def run_intake_interview(
     )
     acceptance_criteria = [c.strip() for c in criteria_raw.split(";") if c.strip()]
 
-    # 5. Testing expectations
+    # 5. Required Code Symbols
+    symbols_raw = ask(
+        "What specific functions, classes, or endpoints must be implemented? (comma-separated, e.g. 'validate_jwt, check_expiration')",
+        default="",
+    )
+    expected_symbols = [s.strip() for s in symbols_raw.split(",") if s.strip()]
+
+    # 6. Testing expectations
     test_expectations = ask(
         "What tests must be executed? (e.g. 'pytest -q', 'npm test')",
         default="pytest",
     )
 
-    # 6. Constraints
+    # 7. Constraints
     con.print("\n[bold]4. Constraints & Edge Cases[/bold]")
     constraints = ask(
         "Any performance, backwards-compatibility, or security edge cases to respect?",
@@ -180,6 +203,7 @@ def run_intake_interview(
         allowed_scope=allowed_scope,
         forbidden_scope=forbidden_scope,
         acceptance_criteria=acceptance_criteria,
+        expected_symbols=expected_symbols,
         test_expectations=test_expectations,
         constraints=constraints,
     )

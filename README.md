@@ -48,34 +48,41 @@ uv pip install agent-verify
 pip install "agent-verify[mcp]"
 ```
 
-### 2. Interactive Intake Interview ("Grill-Me")
+### 2. Interactive Intake Interview (`grill-me`)
 
-Before generating code or dispatching an agent, grill the user/developer interactively on what they are building to generate a rock-solid `task_spec.md` and baseline `session_claim.json`:
+Before generating code or dispatching an agent, grill the user/developer interactively on what they are building to capture full details and generate a rock-solid `task_spec.md` and baseline `session_claim.json`:
 
 ```bash
-# Start the interactive intake interview
+# Grill the developer/agent on full details (interactive intake)
+agent-verify grill-me
+
+# Or using the alias:
 agent-verify interview
 
 # Generates:
-# - task_spec.md (detailed objectives, scope boundaries, acceptance criteria)
-# - session_claim.json (baseline verification claim)
+# - task_spec.md (detailed objectives, scope boundaries, forbidden areas, required symbols, acceptance criteria)
+# - session_claim.json (baseline verification claim with strict boundaries)
 ```
 
-### 3. Verify Agent Sessions
+### 3. Verify Agent Sessions (Zero-Trust)
+
+`agent-verify` operates on a **Zero-Trust principle**: never believe what the agent says in its summary. All claims are audited against actual git diffs, AST symbols, test execution, and boundary rules:
 
 ```bash
 # Audit the current working tree against an agent's claim summary:
 agent-verify verify --summary "Fixed JWT expiry in auth.py and added unit test. 8 passed."
 
-# Or verify interactively — prompts you to confirm/reject any detected discrepancies:
-agent-verify verify --interactive
-
-# Or verify against a specific base branch and task specification:
+# Enforce strict scope boundaries and forbidden paths:
 agent-verify verify \
   --base-ref origin/main \
   --summary "Implemented stripe webhook handler" \
   --spec task_spec.md \
-  --allowed-path "src/billing/*"
+  --allowed-path "src/billing/*" \
+  --forbidden-path ".env*" \
+  --forbidden-path ".github/workflows/*"
+
+# Or verify interactively — cross-examines you on every detected anomaly:
+agent-verify verify --interactive
 ```
 
 ### 4. Output Formats
@@ -230,6 +237,8 @@ Commands:
   verify             Run full verification pipeline against AI agent claims.
   install-hook       Install pre-push git hook.
   uninstall-git-hook Uninstall pre-push git hook.
+  interview          Interactively grill developer/agent to build verified spec.
+  grill-me           Interactively grill developer/agent to build verified spec.
   check-hook         Check if pre-push hook is installed.
   report             Render a previously saved Trust Report.
   version            Display agent-verify version.
@@ -245,7 +254,9 @@ Commands:
 | `--spec` | | Path to task specification markdown file | `None` |
 | `--base-ref` | `-b` | Git ref to diff against (`main`, `HEAD~1`) | `working-tree` |
 | `--allowed-path` | `-a` | Permitted directory prefix or glob (repeatable) | `[]` |
+| `--forbidden-path` | `-F` | Strictly off-limits directory prefix or glob (repeatable) | `[]` |
 | `--skip-tests` | | Bypass test suite execution | `False` |
+| `--interactive` | `-i` | Cross-examine user on any detected discrepancies | `False` |
 | `--format` | `-f` | Output format: `rich`, `json`, `markdown` | `rich` |
 | `--output` | `-o` | Destination file path to save report | `None` |
 | `--strict` | | Exit with code `2` on `SUSPICIOUS` | `False` |

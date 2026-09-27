@@ -62,8 +62,28 @@ class InteractiveVerifierSession:
         approved_unclaimed: list[str] = []
         approved_scope_exceptions: list[str] = []
 
-        # 1. Question on Undeclared Files
+        # 1. Question on Sensitive Undeclared Files
+        for sensitive_file in list(report.diff_verification.sensitive_unclaimed_changes):
+            q = f"🚨 CRITICAL SECURITY ALERT: Sensitive file '{sensitive_file}' was modified without declaration. Did you intentionally authorize this change?"
+            approved = self._ask_confirm(q, default=False)
+            clarifications.append(
+                UserClarification(
+                    topic="sensitive_undeclared_file",
+                    target=sensitive_file,
+                    question=q,
+                    user_response="Authorized sensitive modification"
+                    if approved
+                    else "Rejected as unauthorized stealth modification",
+                    authorized=approved,
+                )
+            )
+            if approved:
+                approved_unclaimed.append(sensitive_file)
+
+        # 2. Question on Undeclared Files
         for unclaimed_file in list(report.diff_verification.unclaimed_changes):
+            if unclaimed_file in report.diff_verification.sensitive_unclaimed_changes:
+                continue
             q = f"File '{unclaimed_file}' was modified in git but never declared by the agent. Did you intend to modify this file?"
             approved = self._ask_confirm(q, default=False)
             clarifications.append(
@@ -80,7 +100,23 @@ class InteractiveVerifierSession:
             if approved:
                 approved_unclaimed.append(unclaimed_file)
 
-        # 2. Question on Weakened Assertions
+        # 3. Question on Test Claim Discrepancies
+        for disc in list(report.test_verification.claim_discrepancies):
+            q = f"🚨 Test claim mismatch: {disc}. Was this discrepancy intentional or acceptable?"
+            approved = self._ask_confirm(q, default=False)
+            clarifications.append(
+                UserClarification(
+                    topic="test_claim_discrepancy",
+                    target=disc,
+                    question=q,
+                    user_response="Authorized discrepancy"
+                    if approved
+                    else "Rejected as deceptive test reporting",
+                    authorized=approved,
+                )
+            )
+
+        # 4. Question on Weakened Assertions
         for flag in list(report.test_verification.weakened_assertions_detected):
             q = f"Anti-gaming alert: {flag}. Was this assertion deliberately modified or deleted with your approval?"
             approved = self._ask_confirm(q, default=False)
@@ -96,8 +132,28 @@ class InteractiveVerifierSession:
                 )
             )
 
-        # 3. Question on Out-of-Scope Files
+        # 5. Question on Forbidden Scope Breaches
+        for f_file in list(report.scope_verification.forbidden_scope_violations):
+            q = f"🚨 FORBIDDEN SCOPE BREACH: '{f_file}' was modified inside strictly off-limits areas. Authorize emergency scope override?"
+            approved = self._ask_confirm(q, default=False)
+            clarifications.append(
+                UserClarification(
+                    topic="forbidden_scope_breach",
+                    target=f_file,
+                    question=q,
+                    user_response="Emergency override authorized"
+                    if approved
+                    else "Rejected as forbidden scope breach",
+                    authorized=approved,
+                )
+            )
+            if approved:
+                approved_scope_exceptions.append(f_file)
+
+        # 6. Question on Out-of-Scope Files
         for oos_file in list(report.scope_verification.out_of_scope_files):
+            if oos_file in report.scope_verification.forbidden_scope_violations:
+                continue
             q = f"Scope violation: '{oos_file}' is outside approved boundaries. Approve this scope exception?"
             approved = self._ask_confirm(q, default=False)
             clarifications.append(
@@ -114,7 +170,23 @@ class InteractiveVerifierSession:
             if approved:
                 approved_scope_exceptions.append(oos_file)
 
-        # 4. Question on Spec Drift
+        # 7. Question on Hallucinated Requirement Claims
+        for hal in list(report.spec_compliance.hallucinated_claims):
+            q = f"🚨 Hallucinated claim: Agent claimed '{hal}' in summary, but zero code changes exist in git diff. Accept agent's word?"
+            approved = self._ask_confirm(q, default=False)
+            clarifications.append(
+                UserClarification(
+                    topic="hallucinated_claim",
+                    target=hal,
+                    question=q,
+                    user_response="Accepted without code diff evidence"
+                    if approved
+                    else "Rejected as unverified claim",
+                    authorized=approved,
+                )
+            )
+
+        # 8. Question on Spec Drift
         for drift_item in list(report.spec_compliance.unrequested_drift):
             q = f"Spec drift: '{drift_item}'. Was this unrequested feature intentional and approved?"
             approved = self._ask_confirm(q, default=False)

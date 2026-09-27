@@ -28,6 +28,37 @@ def _is_path_match(claimed: str, actual: str) -> bool:
     return bool(a.endswith("/" + c) or c.endswith("/" + a))
 
 
+def _is_sensitive_file(path: str) -> bool:
+    """Identify if a file path belongs to security, CI/CD, credential, dependency, or infra domains."""
+    norm = path.replace("\\", "/").lower()
+    if ".github/workflows" in norm or ".gitlab-ci" in norm or ".circleci" in norm or "jenkins" in norm:
+        return True
+    if norm.endswith(".env") or "/.env" in norm or ".env." in norm:
+        return True
+    if any(k in norm for k in ("secret", "credential", "id_rsa", "token", ".pem", ".key")):
+        return True
+    filename = Path(norm).name
+    if filename in (
+        "package.json",
+        "package-lock.json",
+        "yarn.lock",
+        "pnpm-lock.yaml",
+        "pyproject.toml",
+        "uv.lock",
+        "poetry.lock",
+        "requirements.txt",
+        "cargo.toml",
+        "cargo.lock",
+        "go.mod",
+        "go.sum",
+        "dockerfile",
+        "docker-compose.yml",
+        "docker-compose.yaml",
+    ):
+        return True
+    return bool("migrations/" in norm or "alembic/" in norm)
+
+
 class DiffVerifier(BaseCheck):
     """Audits agent modification claims against ground-truth git diffs."""
 
@@ -68,7 +99,13 @@ class DiffVerifier(BaseCheck):
             if not any(_is_path_match(cf, actual) for actual in actual_files):
                 fabricated.append(cf)
 
+        sensitive_unclaimed = [f for f in unclaimed if _is_sensitive_file(f)]
+
         discrepancies: list[str] = []
+        if sensitive_unclaimed:
+            discrepancies.append(
+                f"🚨 CRITICAL STEALTH MODIFICATION: {len(sensitive_unclaimed)} sensitive file(s) modified undeclared: {', '.join(sensitive_unclaimed)}"
+            )
         if unclaimed:
             discrepancies.append(
                 f"Undeclared modifications in {len(unclaimed)} file(s): {', '.join(unclaimed[:5])}"
@@ -79,12 +116,16 @@ class DiffVerifier(BaseCheck):
             )
 
         # Status determination
-        if len(unclaimed) > 0 or len(fabricated) > 1:
+        if sensitive_unclaimed or len(unclaimed) > 0 or len(fabricated) > 1:
             status = CheckStatus.FAIL
-            notes = (
-                f"Diff mismatch: {len(unclaimed)} undeclared files modified, "
-                f"{len(fabricated)} claimed files untouched."
-            )
+            fail_notes = []
+            if sensitive_unclaimed:
+                fail_notes.append(f"{len(sensitive_unclaimed)} undeclared sensitive file(s)")
+            if unclaimed:
+                fail_notes.append(f"{len(unclaimed)} undeclared files modified")
+            if len(fabricated) > 1:
+                fail_notes.append(f"{len(fabricated)} claimed files untouched")
+            notes = f"Diff mismatch: {', '.join(fail_notes)}."
         elif len(fabricated) == 1:
             status = CheckStatus.WARN
             notes = f"Minor discrepancy: 1 claimed file had no detected changes ({fabricated[0]})."
@@ -100,6 +141,7 @@ class DiffVerifier(BaseCheck):
             claimed_files=claimed_files,
             actual_changed_files=actual_files,
             unclaimed_changes=unclaimed,
+            sensitive_unclaimed_changes=sensitive_unclaimed,
             fabricated_claims=fabricated,
             lines_added=diff_summary.total_lines_added,
             lines_deleted=diff_summary.total_lines_deleted,

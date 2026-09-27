@@ -1,8 +1,14 @@
-"""Unified LLM Judge caller with multi-provider support and deterministic heuristic fallback."""
+"""Unified LLM Judge caller with multi-provider support and deterministic heuristic fallback.
+
+Supports Gemini, OpenAI, and Anthropic as LLM providers. When no API key
+is configured, falls back to deterministic keyword-based heuristics that
+work offline with zero cost.
+"""
 
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 from typing import Any
@@ -16,6 +22,8 @@ from agent_verifier.llm.prompts import (
     SPEC_COMPLIANCE_SYSTEM_PROMPT,
     SPEC_COMPLIANCE_USER_TEMPLATE,
 )
+
+logger = logging.getLogger("agent_verify.llm")
 
 
 class LLMJudge:
@@ -70,10 +78,18 @@ class LLMJudge:
                     ),
                 )
                 if res and "compliance_score" in res:
+                    logger.info(
+                        "LLM spec compliance evaluation via %s: score=%.2f",
+                        self.provider,
+                        res.get("compliance_score", 0),
+                    )
                     return res
-            except Exception:
-                # Silently fallback to heuristic mode on network/API failure
-                pass
+            except Exception as e:
+                logger.warning(
+                    "LLM provider '%s' failed for spec compliance, falling back to heuristic: %s",
+                    self.provider,
+                    e,
+                )
 
         return self._heuristic_spec_compliance(spec_text, agent_summary, diff_text)
 
@@ -93,10 +109,20 @@ class LLMJudge:
                     ),
                 )
                 if res and "matches_claims" in res:
+                    logger.info(
+                        "LLM diff alignment evaluation via %s: matches=%s",
+                        self.provider,
+                        res.get("matches_claims"),
+                    )
                     return res
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(
+                    "LLM provider '%s' failed for diff alignment, falling back to heuristic: %s",
+                    self.provider,
+                    e,
+                )
 
+        logger.debug("Using heuristic diff alignment (no LLM provider active)")
         return {
             "matches_claims": True,
             "phantom_claims": [],
@@ -186,35 +212,72 @@ class LLMJudge:
             paragraphs = [p.strip() for p in spec_text.split("\n\n") if len(p.strip()) > 10]
             requirements = paragraphs[:5]
 
+        diff_evidence = diff_text.lower()
+        summary_evidence = agent_summary.lower()
         unmet: list[str] = []
-        combined_evidence = (agent_summary + "\n" + diff_text).lower()
+        hallucinated: list[str] = []
 
         for req in requirements:
             # Extract key words (> 3 chars, alphanumeric)
             words = [w.lower() for w in re.findall(r"\b[a-zA-Z_]{4,}\b", req)]
-            matched_words = [w for w in words if w in combined_evidence]
-            # If less than 40% of substantive keywords are present in diff or summary, flag as potential unmet requirement
-            if words and (len(matched_words) / len(words)) < 0.35:
+            if not words:
+                continue
+
+            # Ground truth: check presence in the actual git diff
+            diff_matches = [w for w in words if w in diff_evidence]
+            diff_ratio = len(diff_matches) / len(words)
+
+            # Check if agent claimed it in summary
+            summary_matches = [w for w in words if w in summary_evidence]
+            summary_ratio = len(summary_matches) / len(words)
+
+            if diff_ratio >= 0.30:
+                # Evidence confirmed in code diff
+                pass
+            elif summary_ratio >= 0.40 and diff_ratio < 0.20:
+                # Agent claimed it in summary, but code is missing from diff!
+                flag_text = f"{req} (Claimed by agent in summary, but missing from git diff)"
+                unmet.append(flag_text)
+                hallucinated.append(req)
+            else:
                 unmet.append(req)
 
-        # Check for unrequested drift: e.g. changes in unrelated areas
+        # Check for unrequested drift: changes in sensitive areas in diff not mentioned in spec
         drift: list[str] = []
         spec_lower = spec_text.lower()
-        if "auth" not in spec_lower and (
-            "auth" in combined_evidence or "login" in combined_evidence
-        ):
-            drift.append("Unrequested authentication/login code modifications detected")
-        if "payment" not in spec_lower and (
-            "payment" in combined_evidence or "billing" in combined_evidence
-        ):
-            drift.append("Unrequested payment/billing modifications detected")
+
+        # Define sensitive domain categories and their trigger keywords
+        _DRIFT_CATEGORIES = [
+            ("auth", ["auth", "login", "session", "oauth", "jwt"], "authentication/login"),
+            ("payment", ["payment", "billing", "stripe", "invoice", "charge"], "payment/billing"),
+            ("database", ["migration", "schema", "alter table", "drop table"], "database schema"),
+            ("security", ["secret", "credential", "password", "api_key", "token"], "security/credentials"),
+            ("config", ["dockerfile", "docker-compose", "nginx", ".env"], "infrastructure/config"),
+            ("cicd", ["workflow", "github/workflows", "ci.yml", "deploy"], "CI/CD pipeline"),
+        ]
+
+        for category, triggers, label in _DRIFT_CATEGORIES:
+            all_terms = [category] + triggers
+            if not any(term in spec_lower for term in all_terms) and any(
+                trigger in diff_evidence for trigger in triggers
+            ):
+                drift.append(f"Unrequested {label} modifications detected in diff")
 
         total_reqs = len(requirements) or 1
         compliance_score = max(0.0, min(1.0, (total_reqs - len(unmet)) / total_reqs))
 
+        logger.debug(
+            "Heuristic spec compliance: score=%.2f, unmet=%d, hallucinated=%d, drift=%d",
+            compliance_score,
+            len(unmet),
+            len(hallucinated),
+            len(drift),
+        )
+
         return {
             "compliance_score": round(compliance_score, 2),
             "unmet_requirements": unmet,
+            "hallucinated_claims": hallucinated,
             "unrequested_drift": drift,
-            "reasoning": f"Evaluated {total_reqs} requirement(s). Found {len(unmet)} unverified item(s).",
+            "reasoning": f"Evaluated {total_reqs} requirement(s). Found {len(unmet)} unverified item(s) and {len(hallucinated)} hallucinated claim(s).",
         }

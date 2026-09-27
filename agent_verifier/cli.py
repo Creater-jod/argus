@@ -76,6 +76,12 @@ def verify(
         "-a",
         help="Allowed path glob pattern(s). Can be repeated.",
     ),
+    forbidden_path: list[str] | None = typer.Option(
+        None,
+        "--forbidden-path",
+        "-F",
+        help="Strictly forbidden path glob pattern(s). Can be repeated.",
+    ),
     skip_tests: bool = typer.Option(
         False,
         "--skip-tests",
@@ -123,6 +129,8 @@ def verify(
 
     if allowed_path:
         session_claim.allowed_paths.extend(allowed_path)
+    if forbidden_path:
+        session_claim.forbidden_paths.extend(forbidden_path)
 
     # 2. Run Pipeline
     pipeline = VerificationPipeline()
@@ -296,6 +304,25 @@ def interview(
     output_claim.parent.mkdir(parents=True, exist_ok=True)
     output_claim.write_text(claim_obj.model_dump_json(indent=2), encoding="utf-8")
     console.print(f"[bold green]Saved baseline claim to:[/bold green] [cyan]{output_claim}[/cyan]")
+
+
+@app.command(name="grill-me")
+def grill_me(
+    output_spec: Path = typer.Option(
+        Path("task_spec.md"),
+        "--output-spec",
+        "-s",
+        help="Destination path for generated markdown task specification",
+    ),
+    output_claim: Path = typer.Option(
+        Path("session_claim.json"),
+        "--output-claim",
+        "-c",
+        help="Destination path for generated baseline session claim JSON",
+    ),
+) -> None:
+    """Interactively grill developer or agent to extract full requirements and build verified spec."""
+    interview(output_spec=output_spec, output_claim=output_claim)
 
 
 @app.command()

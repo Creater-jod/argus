@@ -72,23 +72,27 @@ class SpecVerifier(BaseCheck):
 
         score = float(eval_res.get("compliance_score", 1.0))
         unmet = eval_res.get("unmet_requirements", [])
+        hallucinated = eval_res.get("hallucinated_claims", [])
         drift = eval_res.get("unrequested_drift", [])
         reasoning = eval_res.get("reasoning", "")
 
         status = CheckStatus.PASS
-        if score < 0.60 or len(unmet) >= 2:
+        if score < 0.60 or len(unmet) >= 2 or len(hallucinated) >= 2:
             status = CheckStatus.FAIL
-        elif score < 0.85 or len(drift) > 0 or len(unmet) > 0:
+        elif score < 0.85 or len(drift) > 0 or len(unmet) > 0 or len(hallucinated) > 0:
             status = CheckStatus.WARN
 
         notes = (
             f"Compliance score: {int(score * 100)}%. "
-            f"Unmet requirements: {len(unmet)}. Unrequested drift: {len(drift)}. {reasoning}"
+            f"Unmet requirements: {len(unmet)}. "
+            f"Hallucinated claims: {len(hallucinated)}. "
+            f"Unrequested drift: {len(drift)}. {reasoning}"
         )
 
         return SpecComplianceResult(
             status=status,
             unmet_requirements=unmet,
+            hallucinated_claims=hallucinated,
             unrequested_drift=drift,
             compliance_score=score,
             notes=notes.strip(),

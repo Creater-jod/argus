@@ -28,6 +28,7 @@ from agent_verifier.interview import (
 from agent_verifier.models import (
     CheckStatus,
     DiffVerificationResult,
+    RiskLevel,
     ScopeVerificationResult,
     SessionClaim,
     SpecComplianceResult,
@@ -35,6 +36,7 @@ from agent_verifier.models import (
     TrustReport,
     UserClarification,
     Verdict,
+    VerdictThresholds,
 )
 from agent_verifier.pipeline import VerificationPipeline
 from agent_verifier.report import (
@@ -52,7 +54,9 @@ __all__ = [
     "SessionClaim",
     "TrustReport",
     "Verdict",
+    "VerdictThresholds",
     "CheckStatus",
+    "RiskLevel",
     "DiffVerificationResult",
     "ScopeVerificationResult",
     "SpecComplianceResult",

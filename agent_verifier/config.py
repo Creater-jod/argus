@@ -17,7 +17,10 @@ class VerifierConfig(BaseModel):
         default=30, description="Maximum seconds to allow test runner subprocess to execute"
     )
     max_unclaimed_files_tolerance: int = Field(
-        default=0, description="Maximum acceptable unclaimed modified files before failing"
+        default=2, description="Maximum acceptable unclaimed modified files before failing"
+    )
+    min_compliance_score: float = Field(
+        default=0.85, description="Minimum compliance score before flagging SUSPICIOUS"
     )
 
 
