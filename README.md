@@ -1,11 +1,5 @@
 <div align="center">
 
-  <a href="https://github.com/Creater-jod/argus">
-    <img src="assets/logo.png" alt="Argus Logo" width="160" height="160" />
-  </a>
-
-  <br />
-
   <h1><b>A R G U S &nbsp; 👁️</b></h1>
 
   <p>
