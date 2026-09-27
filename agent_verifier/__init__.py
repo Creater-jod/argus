@@ -19,6 +19,12 @@ from agent_verifier.git import (
     parse_git_diff,
     uninstall_hook,
 )
+from agent_verifier.interview import (
+    IntakeInterview,
+    InteractiveVerifierSession,
+    conduct_interactive_verification,
+    run_intake_interview,
+)
 from agent_verifier.models import (
     CheckStatus,
     DiffVerificationResult,
@@ -27,6 +33,7 @@ from agent_verifier.models import (
     SpecComplianceResult,
     TestVerificationResult,
     TrustReport,
+    UserClarification,
     Verdict,
 )
 from agent_verifier.pipeline import VerificationPipeline
@@ -50,6 +57,11 @@ __all__ = [
     "ScopeVerificationResult",
     "SpecComplianceResult",
     "TestVerificationResult",
+    "UserClarification",
+    "IntakeInterview",
+    "run_intake_interview",
+    "InteractiveVerifierSession",
+    "conduct_interactive_verification",
     "DiffVerifier",
     "TestVerifier",
     "ScopeVerifier",

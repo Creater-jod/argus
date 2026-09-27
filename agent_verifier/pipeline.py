@@ -43,6 +43,8 @@ class VerificationPipeline:
         spec_path: str | Path | None = None,
         skip_tests: bool = False,
         skip_graph: bool = False,
+        interactive: bool = False,
+        confirm_func: Any = None,
     ) -> TrustReport:
         """Run all verification checks on target repository and produce a TrustReport."""
         start_time = time.monotonic()
@@ -97,6 +99,14 @@ class VerificationPipeline:
 
         # Aggregate Verdict & Confidence Score
         report.compute_verdict()
+
+        # Optional Interactive Discrepancy Questioning
+        if interactive:
+            from agent_verifier.interview.interactive_verifier import InteractiveVerifierSession
+
+            session = InteractiveVerifierSession(confirm_func=confirm_func)
+            report = session.review_discrepancies(report)
+
         report.duration_seconds = round(time.monotonic() - start_time, 2)
 
         # High-level summary

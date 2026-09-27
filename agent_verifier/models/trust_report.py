@@ -113,6 +113,21 @@ class SpecComplianceResult(BaseModel):
     notes: str = Field(default="", description="Spec compliance assessment notes")
 
 
+class UserClarification(BaseModel):
+    """Records an interactive question asked to the user and their response."""
+
+    topic: str = Field(
+        ...,
+        description="Category: undeclared_file, weakened_assertion, scope_violation, spec_drift",
+    )
+    target: str = Field(..., description="Target symbol, line, or file path")
+    question: str = Field(..., description="Question posed to the user")
+    user_response: str = Field(..., description="User's interactive response or answer")
+    authorized: bool = Field(
+        default=False, description="Whether deviation was explicitly authorized"
+    )
+
+
 class TrustReport(BaseModel):
     """Comprehensive 30-second Trust Report aggregating all verification checks."""
 
@@ -130,6 +145,11 @@ class TrustReport(BaseModel):
     test_verification: TestVerificationResult = Field(default_factory=TestVerificationResult)
     scope_verification: ScopeVerificationResult = Field(default_factory=ScopeVerificationResult)
     spec_compliance: SpecComplianceResult = Field(default_factory=SpecComplianceResult)
+
+    user_clarifications: list[UserClarification] = Field(
+        default_factory=list,
+        description="Interactive clarifications and user approvals obtained during audit",
+    )
 
     duration_seconds: float = Field(
         default=0.0, description="Total verification duration in seconds"

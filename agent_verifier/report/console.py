@@ -152,4 +152,17 @@ def render_trust_report(report: TrustReport, console: Console | None = None) -> 
         for alert in alerts:
             con.print(f"  • {alert}")
 
+    # 4. Interactive Clarifications Section (if any)
+    if report.user_clarifications:
+        con.print("\n[bold cyan]💬 Interactive User Clarifications & Audit Trail:[/bold cyan]")
+        for c in report.user_clarifications:
+            auth_badge = (
+                "[bold green]AUTHORIZED[/bold green]"
+                if c.authorized
+                else "[bold red]REJECTED[/bold red]"
+            )
+            con.print(
+                f"  • [{c.topic}] [bold]{c.target}[/bold]: {auth_badge} -- [italic]{c.user_response}[/italic]"
+            )
+
     con.print()

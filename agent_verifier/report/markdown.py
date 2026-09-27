@@ -107,4 +107,18 @@ def export_markdown(report: TrustReport) -> str:
             ]
         )
 
+    if report.user_clarifications:
+        lines.extend(
+            [
+                "## 💬 Interactive User Clarifications",
+                "",
+                "| Topic | Target | Status | User Response |",
+                "|:---|:---|:---:|:---|",
+            ]
+        )
+        for c in report.user_clarifications:
+            auth_badge = "✅ AUTHORIZED" if c.authorized else "❌ REJECTED"
+            lines.append(f"| `{c.topic}` | `{c.target}` | {auth_badge} | {c.user_response} |")
+        lines.append("")
+
     return "\n".join(lines)

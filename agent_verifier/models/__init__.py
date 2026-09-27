@@ -6,6 +6,7 @@ from agent_verifier.models.trust_report import (
     SpecComplianceResult,
     TestVerificationResult,
     TrustReport,
+    UserClarification,
     Verdict,
 )
 
@@ -16,6 +17,7 @@ __all__ = [
     "SpecComplianceResult",
     "TestVerificationResult",
     "TrustReport",
+    "UserClarification",
     "Verdict",
     "SessionClaim",
 ]

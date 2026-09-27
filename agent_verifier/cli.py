@@ -98,6 +98,12 @@ def verify(
         "--strict",
         help="Exit with non-zero code on SUSPICIOUS as well as FAILED",
     ),
+    interactive: bool = typer.Option(
+        False,
+        "--interactive",
+        "-i",
+        help="Interactively question user to confirm or reject detected discrepancies",
+    ),
 ) -> None:
     """Run full verification pipeline against AI agent claims."""
     # 1. Resolve Claim
@@ -127,6 +133,7 @@ def verify(
             base_ref=base_ref,
             spec_path=str(spec) if spec else None,
             skip_tests=skip_tests,
+            interactive=interactive,
         )
     except Exception as e:
         console.print(f"[bold red]Verification Error:[/bold red] {e}")
@@ -257,6 +264,38 @@ def report(
         print(export_markdown(loaded))
     else:
         render_trust_report(loaded, console=console)
+
+
+@app.command()
+def interview(
+    output_spec: Path = typer.Option(
+        Path("task_spec.md"),
+        "--output-spec",
+        "-s",
+        help="Destination path for generated markdown task specification",
+    ),
+    output_claim: Path = typer.Option(
+        Path("session_claim.json"),
+        "--output-claim",
+        "-c",
+        help="Destination path for generated baseline session claim JSON",
+    ),
+) -> None:
+    """Interactively grill developer or agent to extract full requirements and build verified spec."""
+    from agent_verifier.interview.intake import run_intake_interview
+
+    interview_res = run_intake_interview(console=console)
+    spec_md = interview_res.to_markdown_spec()
+    output_spec.parent.mkdir(parents=True, exist_ok=True)
+    output_spec.write_text(spec_md, encoding="utf-8")
+    console.print(
+        f"[bold green]Saved task specification to:[/bold green] [cyan]{output_spec}[/cyan]"
+    )
+
+    claim_obj = interview_res.to_session_claim()
+    output_claim.parent.mkdir(parents=True, exist_ok=True)
+    output_claim.write_text(claim_obj.model_dump_json(indent=2), encoding="utf-8")
+    console.print(f"[bold green]Saved baseline claim to:[/bold green] [cyan]{output_claim}[/cyan]")
 
 
 @app.command()

@@ -48,21 +48,37 @@ uv pip install agent-verify
 pip install "agent-verify[mcp]"
 ```
 
-### 2. Verify Your First Agent Session
+### 2. Interactive Intake Interview ("Grill-Me")
+
+Before generating code or dispatching an agent, grill the user/developer interactively on what they are building to generate a rock-solid `task_spec.md` and baseline `session_claim.json`:
+
+```bash
+# Start the interactive intake interview
+agent-verify interview
+
+# Generates:
+# - task_spec.md (detailed objectives, scope boundaries, acceptance criteria)
+# - session_claim.json (baseline verification claim)
+```
+
+### 3. Verify Agent Sessions
 
 ```bash
 # Audit the current working tree against an agent's claim summary:
 agent-verify verify --summary "Fixed JWT expiry in auth.py and added unit test. 8 passed."
 
+# Or verify interactively — prompts you to confirm/reject any detected discrepancies:
+agent-verify verify --interactive
+
 # Or verify against a specific base branch and task specification:
 agent-verify verify \
   --base-ref origin/main \
   --summary "Implemented stripe webhook handler" \
-  --spec docs/requirements.md \
+  --spec task_spec.md \
   --allowed-path "src/billing/*"
 ```
 
-### 3. Output Formats
+### 4. Output Formats
 
 ```bash
 # Terminal UI (default Rich color-coded output)
