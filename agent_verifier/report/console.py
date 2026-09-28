@@ -87,8 +87,10 @@ def render_trust_report(report: TrustReport, console: Console | None = None) -> 
     # Row 2: Test Verification
     test = report.test_verification
     test_details = [
-        f"Runner: {test.runner} ({test.tests_passed} passed, {test.tests_failed} failed, {test.tests_skipped} skipped)"
+        f"Runner: {test.runner} [{test.execution_mode}] ({test.tests_passed} passed, {test.tests_failed} failed, {test.tests_skipped} skipped)"
     ]
+    if test.is_unverified:
+        test_details.append("[yellow]UNVERIFIED[/yellow]")
     if test.weakened_assertions_detected:
         test_details.append(
             f"[red]Weakened Asserts: {len(test.weakened_assertions_detected)}[/red]"
@@ -130,11 +132,18 @@ def render_trust_report(report: TrustReport, console: Console | None = None) -> 
     alerts = []
     for sec in diff.security_flags:
         alerts.append(f"[bold red]🚨 CRITICAL SECURITY INJECTION:[/bold red] {sec}")
+    for pi in diff.prompt_injection_flags:
+        alerts.append(f"[bold red]🚨 PROMPT INJECTION / SUSPICIOUS UNICODE:[/bold red] {pi}")
     for stub in diff.deceptive_stubs:
         alerts.append(f"[bold red]🚨 DECEPTIVE STUB DETECTED:[/bold red] {stub}")
     if diff.sensitive_unclaimed_changes:
         alerts.append(
             f"[bold red]🚨 CRITICAL STEALTH MODIFICATIONS:[/bold red] {', '.join(diff.sensitive_unclaimed_changes)}"
+        )
+    if diff.ignored_sensitive_files:
+        ign_desc = ", ".join(f"{f['path']} ({f['sha256']})" for f in diff.ignored_sensitive_files)
+        alerts.append(
+            f"[bold yellow]⚠️ Ignored Sensitive Files Present:[/bold yellow] {ign_desc} (No Git baseline; cannot be verified from commit history)"
         )
     if diff.unclaimed_changes:
         alerts.append(
@@ -144,6 +153,8 @@ def render_trust_report(report: TrustReport, console: Console | None = None) -> 
         alerts.append(
             f"[bold yellow]Phantom Claims (Untouched):[/bold yellow] {', '.join(diff.fabricated_claims)}"
         )
+    for wm in test.worktree_mutations:
+        alerts.append(f"[bold red]🚨 TEST-TIME WORKTREE MUTATION:[/bold red] {wm}")
     for cd in test.claim_discrepancies:
         alerts.append(f"[bold red]🚨 Test Claim Discrepancy:[/bold red] {cd}")
     for wa in test.weakened_assertions_detected:
@@ -155,6 +166,10 @@ def render_trust_report(report: TrustReport, console: Console | None = None) -> 
     for oos in scope.out_of_scope_files:
         if oos not in scope.forbidden_scope_violations:
             alerts.append(f"[bold red]Scope Violation:[/bold red] {oos}")
+    if spec.is_heuristic:
+        alerts.append(
+            "[bold yellow]⚠️ Heuristic-Only Spec Check:[/bold yellow] Spec compliance was evaluated via keyword heuristics; requires human review"
+        )
     for hal in spec.hallucinated_claims:
         alerts.append(f"[bold red]🚨 Hallucinated Feature Claim:[/bold red] {hal}")
     for unmet in spec.unmet_requirements:
@@ -180,4 +195,7 @@ def render_trust_report(report: TrustReport, console: Console | None = None) -> 
                 f"  • [{c.topic}] [bold]{c.target}[/bold]: {auth_badge} -- [italic]{c.user_response}[/italic]"
             )
 
-    con.print()
+    con.print(
+        "\n[dim italic]🛡️ Note: A VERIFIED verdict means only that configured checks found no issues; "
+        "it is not proof that code is safe or non-malicious. Test commands run unsandboxed on host.[/dim italic]\n"
+    )

@@ -123,8 +123,12 @@ class CallGraph:
             if norm_c.startswith("./"):
                 norm_c = norm_c[2:]
             for node, data in self.graph.nodes(data=True):
-                node_file = data.get("file", "").lower()
-                if node_file.endswith(norm_c) or norm_c in node_file:
+                node_file = data.get("file", "").replace("\\", "/").lower()
+                if (
+                    node_file == norm_c
+                    or node_file.endswith("/" + norm_c)
+                    or norm_c.endswith("/" + node_file)
+                ):
                     changed_nodes.add(node)
 
         # Reverse graph to traverse upstream callers (who depends on changed code)
@@ -154,14 +158,15 @@ class CallGraph:
         impacted_files_set: set[str] = set()
         out_of_scope_impacts: list[str] = []
 
+        from agent_verifier.checks.scope_verifier import _is_path_allowed
+
         for node in impacted_nodes:
             data = self.graph.nodes[node]
             f = data.get("file", "")
             impacted_files_set.add(f)
 
             if allowed_paths:
-                norm_f = f.replace("\\", "/").lower()
-                is_allowed = any(ap.lower() in norm_f for ap in allowed_paths)
+                is_allowed = _is_path_allowed(f, allowed_paths)
                 if not is_allowed:
                     out_of_scope_impacts.append(f"{node} in {f}")
 

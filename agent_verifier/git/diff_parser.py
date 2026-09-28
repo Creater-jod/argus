@@ -9,6 +9,10 @@ import git
 from pydantic import BaseModel, Field
 
 
+class GitDiffError(ValueError):
+    """Raised when git diff collection or parsing fails."""
+
+
 class FileDiff(BaseModel):
     """Structured representation of changes in a single file."""
 
@@ -33,6 +37,7 @@ class GitDiffSummary(BaseModel):
     untracked_files: list[str] = Field(default_factory=list)
     total_lines_added: int = 0
     total_lines_deleted: int = 0
+    error: str | None = None
 
     @property
     def changed_file_paths(self) -> list[str]:
@@ -44,6 +49,18 @@ def _normalize_path(p: str | Path) -> str:
     """Normalize file path to use forward slashes and no leading ./."""
     s = str(p).replace("\\", "/")
     if s.startswith("./"):
+        s = s[2:]
+    return s
+
+
+def _clean_diff_path(p: str) -> str:
+    """Clean path by stripping quotes, whitespace, and leading a/ or b/."""
+    s = p.strip()
+    if (s.startswith('"') and s.endswith('"')) or (s.startswith("'") and s.endswith("'")):
+        s = s[1:-1]
+        s = s.replace('\\"', '"').replace("\\\\", "\\")
+    s = _normalize_path(s)
+    if s.startswith("a/") or s.startswith("b/"):
         s = s[2:]
     return s
 
@@ -60,24 +77,49 @@ def parse_unified_diff(diff_text: str) -> dict[str, FileDiff]:
             continue
 
         lines = chunk.splitlines()
-        first_line = lines[0]
-        # Example: a/src/auth.py b/src/auth.py
-        match = re.match(r"a/(.+?)\s+b/(.+)", first_line)
-        if not match:
-            continue
+        first_line = lines[0].strip()
 
-        old_file = _normalize_path(match.group(1))
-        new_file = _normalize_path(match.group(2))
-        file_path = new_file
+        old_file: str | None = None
+        new_file: str | None = None
+
+        # Inspect diff headers in chunk for robust paths (including spaces and quotes)
+        for line in lines[1:12]:
+            if line.startswith("--- "):
+                p = line[4:].strip()
+                if p != "/dev/null":
+                    old_file = _clean_diff_path(p)
+            elif line.startswith("+++ "):
+                p = line[4:].strip()
+                if p != "/dev/null":
+                    new_file = _clean_diff_path(p)
+            elif line.startswith("rename from "):
+                old_file = _clean_diff_path(line[12:])
+            elif line.startswith("rename to "):
+                new_file = _clean_diff_path(line[10:])
+
+        # Fallback to first line if +++ or --- lines were absent (e.g. empty file changes)
+        if not new_file and not old_file:
+            # Check quoted form first: "a/path with spaces" "b/path with spaces"
+            qmatch = re.match(r'^"?a/(.+?)"?\s+"?b/(.+?)"?$', first_line)
+            if qmatch:
+                old_file = _clean_diff_path(qmatch.group(1))
+                new_file = _clean_diff_path(qmatch.group(2))
+            else:
+                continue
 
         change_type = "M"
         if "new file mode" in chunk:
             change_type = "A"
         elif "deleted file mode" in chunk:
             change_type = "D"
-            file_path = old_file
-        elif "rename from" in chunk:
+        elif "rename from" in chunk or "rename to" in chunk:
             change_type = "R"
+
+        file_path = new_file or old_file
+        if not file_path:
+            continue
+        if change_type == "D" and old_file:
+            file_path = old_file
 
         added_lines: list[tuple[int, str]] = []
         deleted_lines: list[tuple[int, str]] = []
@@ -131,6 +173,10 @@ def parse_git_diff(
 
     If base_ref is None, diffs working tree against HEAD (or staging/unstaged).
     Also collects untracked files to detect undeclared new files.
+
+    Raises:
+        ValueError: If repository path does not exist or is invalid.
+        GitDiffError: If git diff collection fails (e.g. invalid base_ref).
     """
     path = Path(repo_path).resolve()
     try:
@@ -171,9 +217,10 @@ def parse_git_diff(
             if staged_diff:
                 files.update(parse_unified_diff(staged_diff))
 
-    except git.GitCommandError:
-        # Subprocess fallback or empty diff
-        pass
+    except git.GitCommandError as e:
+        err_detail = e.stderr.strip() if hasattr(e, "stderr") and e.stderr else str(e)
+        ref_info = f" for base_ref '{base_ref}'" if base_ref else ""
+        raise GitDiffError(f"Git diff collection failed{ref_info}: {err_detail}") from e
 
     # 2. Inspect untracked files
     if include_untracked:

@@ -17,7 +17,7 @@ from agent_verifier.checks.scope_verifier import ScopeVerifier
 from agent_verifier.checks.spec_verifier import SpecVerifier
 from agent_verifier.checks.test_verifier import TestVerifier
 from agent_verifier.config import VerifierConfig, default_config
-from agent_verifier.git.diff_parser import parse_git_diff
+from agent_verifier.git.diff_parser import GitDiffSummary, parse_git_diff
 from agent_verifier.llm.judge import LLMJudge
 from agent_verifier.models.session_claim import SessionClaim
 from agent_verifier.models.trust_report import (
@@ -88,8 +88,16 @@ class VerificationPipeline:
 
         logger.info("Starting verification for %s (base_ref=%s)", path, base_ref)
 
-        # Extract git diff summary
-        diff_summary = parse_git_diff(path, base_ref=base_ref)
+        # Extract git diff summary (fail closed on invalid base_ref or git errors)
+        try:
+            diff_summary = parse_git_diff(path, base_ref=base_ref)
+        except Exception as e:
+            logger.error("Git diff extraction failed: %s", e)
+            diff_summary = GitDiffSummary(
+                repo_path=str(path),
+                base_ref=base_ref,
+                error=str(e),
+            )
 
         context: dict[str, Any] = {
             "diff_summary": diff_summary,
@@ -98,6 +106,9 @@ class VerificationPipeline:
             "skip_test_execution": skip_tests,
             "skip_graph_analysis": skip_graph,
             "test_timeout": self.config.test_timeout_seconds,
+            "max_unclaimed_files_tolerance": self.config.max_unclaimed_files_tolerance,
+            "allow_host_execution": self.config.allow_host_execution,
+            "sandbox_mode": self.config.sandbox_mode,
         }
 
         # Initialize TrustReport
@@ -119,6 +130,25 @@ class VerificationPipeline:
             lambda: self.test_verifier.run(repo_path=path, claim=claim, context=context),
             TestVerificationResult,
         )
+
+        # Post-test state recheck: if tests mutated tracked, untracked, or ignored files,
+        # re-evaluate diff verification against final worktree state and fail
+        if report.test_verification.worktree_mutations:
+            try:
+                final_diff_summary = parse_git_diff(repo_path=path, base_ref=base_ref)
+                final_context = dict(context)
+                final_context["diff_summary"] = final_diff_summary
+                final_diff = self.diff_verifier.run(
+                    repo_path=path, claim=claim, context=final_context
+                )
+                final_diff.status = CheckStatus.FAIL
+                for m in report.test_verification.worktree_mutations:
+                    if m not in final_diff.discrepancies:
+                        final_diff.discrepancies.append(f"🚨 TEST-TIME WORKTREE MUTATION: {m}")
+                report.diff_verification = final_diff
+            except Exception as e:
+                logger.warning("Failed re-running diff check after test-time mutation: %s", e)
+                report.diff_verification.status = CheckStatus.FAIL
 
         # 3. Scope & Blast Radius Verification
         report.scope_verification = self._run_check(

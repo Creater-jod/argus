@@ -85,7 +85,17 @@ def verify(
     skip_tests: bool = typer.Option(
         False,
         "--skip-tests",
-        help="Skip executing test suite in isolated subprocess",
+        help="Skip executing test suite",
+    ),
+    allow_host_exec: bool = typer.Option(
+        True,
+        "--allow-host-exec/--no-allow-host-exec",
+        help="Allow running tests directly on host if container sandbox is unavailable",
+    ),
+    sandbox: str = typer.Option(
+        "auto",
+        "--sandbox",
+        help="Test sandbox mode: 'auto' (use Docker if available), 'docker', 'host', or 'none'",
     ),
     output: Path | None = typer.Option(
         None,
@@ -134,6 +144,8 @@ def verify(
 
     # 2. Run Pipeline
     pipeline = VerificationPipeline()
+    pipeline.config.allow_host_execution = allow_host_exec
+    pipeline.config.sandbox_mode = sandbox
     try:
         report = pipeline.run(
             repo_path=repo,

@@ -46,7 +46,7 @@ In practice, agents routinely:
 3. **Drift from specifications**: Implement unrequested speculative features, hallucinate completed requirements, or modify unrelated subsystems.
 4. **Trigger blast-radius fallout**: Create subtle downstream caller/callee breakages across the codebase.
 
-**Argus** (`argus-verify`) is an **independent, non-bypassable verification engine** that enforces **Zero-Trust**: never believe what the agent says. Argus audits ground-truth git diffs, executes tests in isolated subprocesses, catches test-gaming mutations, calculates call-graph blast radii, and generates a deterministic **Trust Report** with an unambiguous verdict.
+**Argus** (`argus-verify`) is an **independent verification engine** auditing AI coding agent claims against ground-truth git diffs, independent test execution, AST-based call graph blast radius analysis, and formal task specifications to generate deterministic **Trust Reports** with clear verdicts.
 
 ---
 
@@ -288,10 +288,43 @@ Commands:
 | `--allowed-path` | `-a` | Permitted directory prefix or glob (repeatable) | `[]` |
 | `--forbidden-path` | `-F` | Strictly off-limits directory prefix or glob (repeatable) | `[]` |
 | `--skip-tests` | | Bypass test suite execution (marks tests UNVERIFIED) | `False` |
+| `--allow-host-exec` | | Allow running tests directly on host if sandbox unavailable | `True` |
+| `--sandbox` | | Sandbox mode: `auto`, `docker`, `host`, or `none` | `auto` |
 | `--interactive` | `-i` | Cross-examine user on any detected discrepancies | `False` |
 | `--format` | `-f` | Output format: `rich`, `json`, `markdown` | `rich` |
 | `--output` | `-o` | Destination file path to save report | `None` |
 | `--strict` | | Exit with code `2` on `SUSPICIOUS` | `False` |
+
+---
+
+## 🔒 Security Model: Capabilities, Guarantees & Limitations
+
+### Crucial Principle: `VERIFIED` is Not Proof of Safety
+A clean verdict (`VERIFIED`) means **only** that the configured checks found no discrepancies or flagged issues. It is **never** presented as proof that the code is secure, correct, or free of malicious payloads.
+
+### What Argus Checks
+
+1. **Diff Alignment & Integrity**: Audits ground-truth git diffs against agent claims. Flags undeclared modifications, phantom claims, sensitive stealth edits (`.env`, CI/CD workflows, credentials, lockfiles), placeholder TODO stubs, dangerous code injections (`eval()`, `exec()`, `shell=True`), and selected prompt-injection/Unicode obfuscation patterns (zero-width spaces, bidi overrides). Fails closed if diff collection fails.
+2. **Anti-Gaming Test Verification**: Scans test file diffs (Python and JS/TS) for deleted assertions (`assert`, `expect()`, `assert.equal`), commented-out tests, added skip markers (`@pytest.mark.skip`, `it.skip`), failure suppressions (`xfail`), and tautologies. Parses recognized runner output; rejects no-op scripts and fake passing count echos.
+3. **Worktree Mutation Guard**: Snapshots repository state before running tests and verifies that test execution did not mutate tracked, untracked, or relevant ignored files.
+4. **Scope Boundary Enforcement**: Uses normalized, path-component-aware matching to enforce permitted and forbidden directories, preventing path-prefix confusion attacks (e.g. `src` matches `src/app.py` but never `attacker_src/app.py`).
+5. **Blast Radius Impact**: Analyzes Python AST call graphs to determine upstream callers and downstream callees affected by changes. If call-graph analysis is skipped or fails, blast radius is marked `UNKNOWN` and flagged as `SUSPICIOUS`, never assumed to be safe (`LOW`).
+6. **Spec Compliance**: Audits code changes against task specifications. Rejects requirements hidden only in string literals or comments. Heuristic keyword evaluation is labeled as unverified and requires human review.
+7. **Ignored Sensitive Files**: Identifies relevant ignored credential-like files without copying their contents into reports. Hashes files with SHA-256 to track mutations, and documents that ignored files have no Git baseline.
+
+### What Argus Cannot Guarantee
+
+- **No Universal Security Guarantee**: Argus does **not** claim to catch every malicious change, backdoor, or evasion technique.
+- **Static Heuristic Limitations**: Regex and AST heuristics catch common stubs, deletions, and overt prompt injection patterns, but cannot guarantee detection of novel, obfuscated, or multi-step prompt injections.
+- **Dynamic Language Constraints**: Static AST analysis has inherent blindspots in dynamic languages (e.g., dynamic imports, `getattr`/`setattr` dispatch, monkey patching, metaclasses).
+- **Not "Non-Bypassable"**: Argus is an auditing and triage engine designed to rapidly surface anomalies for human review. It is not an impermeable barrier.
+
+### Test Execution & Sandboxing Model
+
+- **Tests Run Unsandboxed by Default**: Running a repository's test command via subprocess executes untrusted code with the privileges of the host user. **Argus does not describe host subprocess execution as an isolation or container sandbox.**
+- **Secret Redaction is Not Complete Isolation**: Redacting common credential-named environment variables prevents accidental exposure, but host processes can still access host filesystem resources and network unless running in a container.
+- **Docker Sandbox Mode**: When Docker is available (`--sandbox docker`), tests run in an ephemeral container with networking disabled (`--network none`), strict resource limits, a temporary working copy, and no inherited host secrets.
+- **Host Opt-In Required**: When container sandboxing is unavailable, host execution requires explicit user authorization via `--allow-host-exec` (or `AGENT_VERIFY_ALLOW_HOST_EXEC=1`). If host execution is not opted into and Docker is absent, test execution is blocked and marked unverified.
 
 ---
 
@@ -306,7 +339,7 @@ Commands:
 | **Spec Drift Analysis** | ✅ LLM + Heuristic | ❌ | ❌ | ⚠️ Subjective |
 | **Interactive Clarification** | ✅ CLI Interrogation | ❌ | ❌ | ⏳ Slow back-and-forth |
 | **Audit Speed** | ⚡ **< 30 seconds** | ⏱️ 5-15 mins | ⚡ Fast | ⏳ Hours to days |
-| **Non-Bypassable** | ✅ Ground truth git | ⚠️ Bypassable | ⚠️ Configurable | ⚠️ Agent bias |
+| **Independent Evidence** | ✅ Ground truth git | ⚠️ Bypassable | ⚠️ Configurable | ⚠️ Agent bias |
 | **MCP Native** | ✅ stdio server | ❌ | ❌ | ❌ |
 
 ---
@@ -323,6 +356,8 @@ Argus works out-of-the-box with sensible zero-config defaults. You can customize
 | `OPENAI_API_KEY` | API Key for OpenAI LLM Judge | `None` |
 | `ANTHROPIC_API_KEY` | API Key for Anthropic Claude LLM Judge | `None` |
 | `AGENT_VERIFY_TIMEOUT` | Test runner timeout in seconds | `30` |
+| `AGENT_VERIFY_ALLOW_HOST_EXEC` | Permit test execution on host without Docker | `1` |
+| `AGENT_VERIFY_SANDBOX_MODE` | Test sandbox mode: `auto`, `docker`, `host`, `none` | `auto` |
 
 ---
 

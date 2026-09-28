@@ -75,11 +75,24 @@ def test_diff_verifier_undeclared_changes():
 
     claim = SessionClaim(claimed_files=["src/auth.py"])
     verifier = DiffVerifier()
-    res = verifier.run(Path("."), claim, context={"diff_summary": diff_summary})
 
-    assert res.status == CheckStatus.FAIL
+    # Within tolerance (default tolerance=2): status is WARN (leading to SUSPICIOUS, never VERIFIED)
+    res = verifier.run(
+        Path("."),
+        claim,
+        context={"diff_summary": diff_summary, "max_unclaimed_files_tolerance": 2},
+    )
+    assert res.status == CheckStatus.WARN
     assert "src/billing.py" in res.unclaimed_changes
     assert len(res.discrepancies) > 0
+
+    # Exceeding tolerance (tolerance=0): status is FAIL
+    res_strict = verifier.run(
+        Path("."),
+        claim,
+        context={"diff_summary": diff_summary, "max_unclaimed_files_tolerance": 0},
+    )
+    assert res_strict.status == CheckStatus.FAIL
 
 
 def test_diff_verifier_fabricated_claims():

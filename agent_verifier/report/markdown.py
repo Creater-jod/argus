@@ -61,7 +61,9 @@ def export_markdown(report: TrustReport) -> str:
     lines.append(f"| **1. Diff Alignment** | {_status_md(diff.status)} | {diff_summary} |")
 
     test = report.test_verification
-    test_summary = f"{test.runner}: {test.tests_passed} passed, {test.tests_failed} failed, {test.tests_skipped} skipped"
+    test_summary = f"{test.runner} ({test.execution_mode}): {test.tests_passed} passed, {test.tests_failed} failed, {test.tests_skipped} skipped"
+    if test.is_unverified:
+        test_summary += ", ⚠️ unverified"
     if test.weakened_assertions_detected:
         test_summary += f", 🚨 {len(test.weakened_assertions_detected)} weakened assertions"
     lines.append(f"| **2. Test & Anti-Gaming** | {_status_md(test.status)} | {test_summary} |")
@@ -85,11 +87,20 @@ def export_markdown(report: TrustReport) -> str:
     discrepancies = []
     for sec in diff.security_flags:
         discrepancies.append(f"- 🚨 **CRITICAL SECURITY INJECTION**: `{sec}`")
+    for pi in diff.prompt_injection_flags:
+        discrepancies.append(f"- 🚨 **PROMPT INJECTION / SUSPICIOUS UNICODE**: `{pi}`")
     for stub in diff.deceptive_stubs:
         discrepancies.append(f"- 🚨 **DECEPTIVE STUB DETECTED**: `{stub}`")
     if diff.sensitive_unclaimed_changes:
         discrepancies.append(
             f"- 🚨 **CRITICAL STEALTH MODIFICATION**: Sensitive file(s) modified without declaration: `{', '.join(diff.sensitive_unclaimed_changes)}`"
+        )
+    if diff.ignored_sensitive_files:
+        ign_desc = ", ".join(
+            f"`{f['path']}` (sha256: {f['sha256']})" for f in diff.ignored_sensitive_files
+        )
+        discrepancies.append(
+            f"- ⚠️ **Ignored Sensitive Files Present**: {ign_desc} *(Note: Ignored files have no Git baseline and cannot be audited from git history)*"
         )
     if diff.unclaimed_changes:
         discrepancies.append(
@@ -99,6 +110,8 @@ def export_markdown(report: TrustReport) -> str:
         discrepancies.append(
             f"- **Phantom Claims (Unmodified)**: `{', '.join(diff.fabricated_claims)}`"
         )
+    for wm in test.worktree_mutations:
+        discrepancies.append(f"- 🚨 **TEST-TIME WORKTREE MUTATION**: `{wm}`")
     for cd in test.claim_discrepancies:
         discrepancies.append(f"- 🚨 **Test Claim Discrepancy**: {cd}")
     for wa in test.weakened_assertions_detected:
@@ -110,6 +123,10 @@ def export_markdown(report: TrustReport) -> str:
     for oos in scope.out_of_scope_files:
         if oos not in scope.forbidden_scope_violations:
             discrepancies.append(f"- **Scope Violation**: `{oos}`")
+    if spec.is_heuristic:
+        discrepancies.append(
+            "- ⚠️ **Heuristic-Only Spec Evaluation**: Evaluated via keyword heuristics; requires human review"
+        )
     for hal in spec.hallucinated_claims:
         discrepancies.append(f"- 🚨 **Hallucinated Feature Claim**: {hal}")
     for unmet in spec.unmet_requirements:

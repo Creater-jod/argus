@@ -13,6 +13,7 @@ from agent_verifier.checks import (
 )
 from agent_verifier.git import (
     FileDiff,
+    GitDiffError,
     GitDiffSummary,
     install_pre_push_hook,
     is_hook_installed,
@@ -74,6 +75,7 @@ __all__ = [
     "LLMJudge",
     "BaseCheck",
     "FileDiff",
+    "GitDiffError",
     "GitDiffSummary",
     "parse_git_diff",
     "install_pre_push_hook",

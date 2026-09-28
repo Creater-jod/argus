@@ -22,6 +22,16 @@ class VerifierConfig(BaseModel):
     min_compliance_score: float = Field(
         default=0.85, description="Minimum compliance score before flagging SUSPICIOUS"
     )
+    allow_host_execution: bool = Field(
+        default_factory=lambda: (
+            os.getenv("AGENT_VERIFY_ALLOW_HOST_EXEC", "1").lower() in ("1", "true", "yes")
+        ),
+        description="Whether to permit executing tests directly on host if sandbox is unavailable",
+    )
+    sandbox_mode: str = Field(
+        default_factory=lambda: os.getenv("AGENT_VERIFY_SANDBOX_MODE", "auto"),
+        description="Test execution sandbox mode: 'auto', 'docker', 'host', or 'none'",
+    )
 
 
 # Singleton default config

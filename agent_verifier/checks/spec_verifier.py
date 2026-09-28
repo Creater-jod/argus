@@ -35,7 +35,21 @@ class SpecVerifier(BaseCheck):
         context = context or {}
         diff_summary: GitDiffSummary | None = context.get("diff_summary")
         if not diff_summary:
-            diff_summary = parse_git_diff(repo_path)
+            try:
+                diff_summary = parse_git_diff(repo_path)
+            except Exception as e:
+                return SpecComplianceResult(
+                    status=CheckStatus.FAIL,
+                    compliance_score=0.0,
+                    notes=f"Git diff collection failed during spec check: {e}",
+                )
+
+        if diff_summary.error:
+            return SpecComplianceResult(
+                status=CheckStatus.FAIL,
+                compliance_score=0.0,
+                notes=f"Git diff collection failed ({diff_summary.error}); cannot verify spec compliance.",
+            )
 
         spec_text = claim.spec_text or ""
         spec_path = context.get("spec_path")
@@ -55,7 +69,8 @@ class SpecVerifier(BaseCheck):
             return SpecComplianceResult(
                 status=CheckStatus.PASS,
                 compliance_score=1.0,
-                notes="No explicit specification file or text provided. Spec check skipped.",
+                is_heuristic=False,
+                notes="No explicit specification file or text provided. Spec check passed based on agent summary.",
             )
 
         # Concatenate diff patches for analysis
@@ -75,6 +90,7 @@ class SpecVerifier(BaseCheck):
         hallucinated = eval_res.get("hallucinated_claims", [])
         drift = eval_res.get("unrequested_drift", [])
         reasoning = eval_res.get("reasoning", "")
+        is_heuristic = bool(eval_res.get("is_heuristic", False))
 
         status = CheckStatus.PASS
         if score < 0.60 or len(unmet) >= 2 or len(hallucinated) >= 2:
@@ -88,9 +104,12 @@ class SpecVerifier(BaseCheck):
             f"Hallucinated claims: {len(hallucinated)}. "
             f"Unrequested drift: {len(drift)}. {reasoning}"
         )
+        if is_heuristic:
+            notes = f"⚠️ Heuristic-only keyword audit ({int(score * 100)}%). Requires human review to confirm. {notes}"
 
         return SpecComplianceResult(
             status=status,
+            is_heuristic=is_heuristic,
             unmet_requirements=unmet,
             hallucinated_claims=hallucinated,
             unrequested_drift=drift,

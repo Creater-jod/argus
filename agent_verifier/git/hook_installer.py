@@ -11,11 +11,11 @@ HOOK_SCRIPT_TEMPLATE = """#!/bin/sh
 
 echo "👁️  [Argus] Running pre-push verification check..."
 
-# Run Argus verification (with fallback to agent-verify)
+# Run Argus verification in strict mode (rejects both FAILED and SUSPICIOUS)
 if command -v argus >/dev/null 2>&1; then
-    argus verify --repo "$(git rev-parse --show-toplevel)" --format rich
+    argus verify --repo "$(git rev-parse --show-toplevel)" --format rich --strict
 else
-    agent-verify verify --repo "$(git rev-parse --show-toplevel)" --format rich
+    agent-verify verify --repo "$(git rev-parse --show-toplevel)" --format rich --strict
 fi
 EXIT_CODE=$?
 
@@ -54,13 +54,22 @@ def install_pre_push_hook(repo_path: Path | str, force: bool = False) -> Path:
     hooks_dir.mkdir(parents=True, exist_ok=True)
 
     hook_file = hooks_dir / "pre-push"
-    if hook_file.exists() and not force:
+    if hook_file.exists():
         existing = hook_file.read_text(encoding="utf-8", errors="replace")
-        if "agent-verify" in existing:
+        is_argus = ("agent-verify" in existing) or ("argus" in existing)
+        if is_argus and not force:
             return hook_file  # Already installed
-        # Back up existing hook
-        backup = hooks_dir / "pre-push.backup"
-        backup.write_text(existing, encoding="utf-8")
+        if not is_argus:
+            # Back up existing hook, but refuse to overwrite an existing backup
+            backup = hooks_dir / "pre-push.backup"
+            if backup.exists():
+                if not force:
+                    raise FileExistsError(
+                        f"Pre-push hook backup already exists at {backup}. Refusing to overwrite backup or replace existing hook."
+                    )
+                # When force=True, proceed with installing the hook while strictly preserving the existing backup
+            else:
+                backup.write_text(existing, encoding="utf-8")
 
     hook_file.write_text(HOOK_SCRIPT_TEMPLATE, encoding="utf-8")
 
@@ -82,7 +91,7 @@ def uninstall_hook(repo_path: Path | str, hook_name: str = "pre-push") -> bool:
         return False
 
     content = hook_file.read_text(encoding="utf-8", errors="replace")
-    if "agent-verify" in content:
+    if "agent-verify" in content or "argus" in content:
         hook_file.unlink()
         backup = hooks_dir / f"{hook_name}.backup"
         if backup.exists():
@@ -99,6 +108,6 @@ def is_hook_installed(repo_path: Path | str, hook_name: str = "pre-push") -> boo
         if not hook_file.exists():
             return False
         content = hook_file.read_text(encoding="utf-8", errors="replace")
-        return "agent-verify" in content
+        return ("agent-verify" in content) or ("argus" in content)
     except Exception:
         return False

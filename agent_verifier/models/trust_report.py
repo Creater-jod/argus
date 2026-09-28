@@ -41,6 +41,7 @@ class RiskLevel(str, Enum):
     MEDIUM = "MEDIUM"
     HIGH = "HIGH"
     CRITICAL = "CRITICAL"
+    UNKNOWN = "UNKNOWN"
 
 
 class DiffVerificationResult(BaseModel):
@@ -74,6 +75,14 @@ class DiffVerificationResult(BaseModel):
         default_factory=list,
         description="Dangerous code injections (eval, exec, shell=True, disabled SSL) detected in diff",
     )
+    prompt_injection_flags: list[str] = Field(
+        default_factory=list,
+        description="Prompt injection phrases or suspicious Unicode characters detected in diff",
+    )
+    ignored_sensitive_files: list[dict[str, str]] = Field(
+        default_factory=list,
+        description="Ignored sensitive files (.env, keys) detected without Git baseline",
+    )
     notes: str = Field(default="", description="Detailed commentary or judge notes")
     discrepancies: list[str] = Field(default_factory=list, description="Key discrepancies flagged")
 
@@ -83,7 +92,17 @@ class TestVerificationResult(BaseModel):
 
     __test__ = False
     status: CheckStatus = CheckStatus.PASS
-    runner: str = Field(default="pytest", description="Test runner used (e.g. pytest, npm, custom)")
+    runner: str = Field(
+        default="pytest", description="Test runner used (e.g. pytest, npm, cargo, go)"
+    )
+    execution_mode: str = Field(
+        default="host_unsandboxed",
+        description="Execution mode: 'sandboxed_docker', 'host_unsandboxed', 'blocked_no_sandbox', 'simulated'",
+    )
+    is_unverified: bool = Field(
+        default=False,
+        description="Whether test results could not be reliably verified from runner output",
+    )
     exit_code: int = Field(default=0, description="Process exit code of test runner")
     tests_run: int = Field(default=0, description="Number of tests executed")
     tests_passed: int = Field(default=0, description="Number of passing tests")
@@ -100,6 +119,10 @@ class TestVerificationResult(BaseModel):
     claim_discrepancies: list[str] = Field(
         default_factory=list,
         description="Discrepancies between agent claimed test statistics and independent execution",
+    )
+    worktree_mutations: list[str] = Field(
+        default_factory=list,
+        description="Changes to tracked, untracked, or ignored files detected after test execution",
     )
     output_snippet: str | None = Field(
         default=None, description="Truncated stdout/stderr of test run"
@@ -138,6 +161,10 @@ class SpecComplianceResult(BaseModel):
     """Result of task spec compliance audit and drift detection."""
 
     status: CheckStatus = CheckStatus.PASS
+    is_heuristic: bool = Field(
+        default=False,
+        description="Whether compliance was evaluated using heuristic keyword matching rather than model judge",
+    )
     unmet_requirements: list[str] = Field(
         default_factory=list, description="Explicit spec requirements that were not fulfilled"
     )
@@ -190,7 +217,7 @@ class VerdictThresholds(BaseModel):
         description="Compliance score below which verdict is SUSPICIOUS",
     )
     suspicious_risk_levels: list[RiskLevel] = Field(
-        default_factory=lambda: [RiskLevel.MEDIUM, RiskLevel.HIGH],
+        default_factory=lambda: [RiskLevel.MEDIUM, RiskLevel.HIGH, RiskLevel.UNKNOWN],
         description="Blast-radius risk levels that trigger SUSPICIOUS",
     )
     failed_confidence_cap: float = Field(
@@ -242,6 +269,11 @@ class TrustReport(BaseModel):
     def compute_verdict(self, thresholds: VerdictThresholds | None = None) -> Verdict:
         """Compute the aggregate verdict based on sub-check statuses.
 
+        Rule: VERIFIED is strictly possible ONLY when EVERY required check
+        completed successfully (CheckStatus.PASS). Any skipped check, failed check,
+        uncollected diff, unverified test run, or unclaimed file change must
+        NEVER receive VERIFIED.
+
         Args:
             thresholds: Optional custom thresholds. Uses sensible defaults if None.
 
@@ -290,6 +322,14 @@ class TrustReport(BaseModel):
             fail_reasons.append(
                 f"{len(self.diff_verification.security_flags)} dangerous code injection(s) in diff"
             )
+        if len(self.diff_verification.prompt_injection_flags) > 0:
+            fail_reasons.append(
+                f"{len(self.diff_verification.prompt_injection_flags)} prompt injection or obfuscated Unicode pattern(s) in diff"
+            )
+        if len(self.test_verification.worktree_mutations) > 0:
+            fail_reasons.append(
+                f"{len(self.test_verification.worktree_mutations)} test-time worktree mutation(s)"
+            )
         if len(self.diff_verification.deceptive_stubs) > 1:
             fail_reasons.append(
                 f"{len(self.diff_verification.deceptive_stubs)} deceptive placeholder stub(s) in diff"
@@ -304,10 +344,30 @@ class TrustReport(BaseModel):
             )
             return self.verdict
 
-        # Suspicious conditions
+        # Suspicious & unverified conditions
         warn_reasons: list[str] = []
         if CheckStatus.WARN in statuses:
             warn_reasons.append("One or more verification pillars returned WARN")
+        if CheckStatus.SKIPPED in statuses:
+            warn_reasons.append("One or more verification checks were SKIPPED; cannot verify")
+        if self.spec_compliance.is_heuristic:
+            warn_reasons.append("Spec compliance is heuristic-only; requires human review")
+        if len(self.diff_verification.ignored_sensitive_files) > 0:
+            warn_reasons.append(
+                f"{len(self.diff_verification.ignored_sensitive_files)} ignored sensitive file(s) present without Git baseline"
+            )
+        if self.test_verification.is_unverified:
+            warn_reasons.append(
+                "Test verification is unverified (unsupported runner or unparseable output)"
+            )
+        if self.test_verification.tests_run == 0:
+            warn_reasons.append("Zero tests were executed; cannot verify test suite pass")
+        if self.test_verification.execution_mode == "blocked_no_sandbox":
+            warn_reasons.append(
+                "Test execution was blocked: no safe sandbox available and host execution not opted into"
+            )
+        if len(self.diff_verification.actual_changed_files) == 0:
+            warn_reasons.append("Empty diff: no code changes detected in repository to verify")
         if len(self.diff_verification.unclaimed_changes) > 0:
             warn_reasons.append(
                 f"{len(self.diff_verification.unclaimed_changes)} undeclared file(s)"
@@ -345,6 +405,14 @@ class TrustReport(BaseModel):
                 "Verdict SUSPICIOUS: %s",
                 "; ".join(warn_reasons),
             )
+            return self.verdict
+
+        # Final invariant: VERIFIED requires every check to have completed cleanly with PASS
+        # and spec compliance cannot be purely unverified/heuristic
+        if not all(s == CheckStatus.PASS for s in statuses) or self.spec_compliance.is_heuristic:
+            self.verdict = Verdict.SUSPICIOUS
+            self.confidence_score = min(self.confidence_score, t.suspicious_confidence_cap)
+            logger.info("Verdict SUSPICIOUS: Not all checks achieved verified PASS status")
             return self.verdict
 
         self.verdict = Verdict.VERIFIED
